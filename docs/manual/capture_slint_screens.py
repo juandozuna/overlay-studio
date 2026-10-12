@@ -22,7 +22,6 @@ SHOTS = [
     ("19-slint-timeline.png", "Slint Animation Verification.overlay", ["--workspace", "3"]),
     ("20-slint-events.png", "Slint Events Verification.overlay", ["--workspace", "3", "--events"]),
     ("21-slint-live-values.png", "Slint Live Values Verification.overlay", ["--workspace", "1"]),
-    ("22-slint-media.png", "Slint Media Verification.overlay", ["--workspace", "0"]),
     ("24-slint-custom-fields.png", "Slint Custom Field Verification.overlay", ["--workspace", "1", "--setup"]),
 ]
 
@@ -118,6 +117,9 @@ def main() -> None:
     ensure_window_tool()
     OUT.mkdir(parents=True, exist_ok=True)
     for name, project, flags in SHOTS:
+        if not (CAPTURE / project).is_file():
+            print(f"skip {name}: missing {project}")
+            continue
         run_shot(name, project, flags)
 
 
