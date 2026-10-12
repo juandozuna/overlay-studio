@@ -1,0 +1,21 @@
+[package]
+name = "overlay-studio-slint"
+version = "0.1.0"
+edition = "2024"
+publish = false
+build = "build.rs"
+
+[dependencies]
+overlay-studio = { path = "../.." }
+slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-femtovg-wgpu", "accessibility", "compat-1-18", "unstable-wgpu-30"] }
+egui = "=0.36.2"
+egui-wgpu = "=0.36.2"
+rfd = "0.15"
+futures-channel = "0.3"
+arboard = "3.6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+syphon-core = "=0.4.0"
+
+[build-dependencies]
+slint-build = "=1.18.1"

@@ -1,0 +1,93 @@
+import { Button, Slider } from "std-widgets.slint";
+struct PaletteColor { name: string, tint: color }
+// Draft colors are committed only by Apply; Cancel leaves the document unchanged.
+export component ColorField inherits Rectangle {
+    in property <color> value;
+    in property <string> label: "Choose color";
+    in property <bool> alpha-enabled: true;
+    callback chosen(color);
+    property <float> hue;
+    property <float> saturation;
+    property <float> brightness;
+    property <float> alpha;
+    property <color> draft: hsv(hue,saturation,brightness,alpha);
+    property <[PaletteColor]> palette: [
+        {name:"White",tint:#ffffff},{name:"Black",tint:#000000},
+        {name:"Red",tint:#e53935},{name:"Orange",tint:#ff8c26},
+        {name:"Yellow",tint:#ffd54f},{name:"Green",tint:#43b968},
+        {name:"Teal",tint:#19a9a5},{name:"Blue",tint:#2588e6},
+        {name:"Purple",tint:#9461db},{name:"Pink",tint:#ed66a1},
+        {name:"Brown",tint:#986132},{name:"Gray",tint:#8a94a3}
+    ];
+    function set-draft(c: color) {
+        root.hue=c.to-hsv().hue;root.saturation=c.to-hsv().saturation;
+        root.brightness=c.to-hsv().value;root.alpha=root.alpha-enabled ? c.to-hsv().alpha : 1;
+    }
+    function open-picker(){root.set-draft(root.value);picker.show();}
+    min-width:0px;preferred-width:150px;height:32px;
+    border-radius:4px;border-width:1px;border-color:#56616e;background:#292d34;
+    accessible-role:button;accessible-label:root.label;
+    HorizontalLayout {padding:5px;spacing:8px;
+        Rectangle {width:32px;height:22px;
+            Image {width:parent.width;height:parent.height;source:@image-url("checker.svg");image-fit:cover;}
+            Rectangle {background:root.value;border-width:1px;border-color:#adb6c3;}
+        }
+        Text {text:root.label;color:#e5eaf0;vertical-alignment:center;font-size:12px;}
+    }
+    keys:=FocusScope {
+    TouchArea {clicked=>{keys.focus();root.open-picker();}}
+    key-pressed(event)=>{
+        if event.text==Key.Return || event.text==" " {root.open-picker();return accept;}
+        return reject;
+    }}
+    picker:=PopupWindow {
+        close-policy: close-on-click-outside;
+        x:0px;y:root.height;width:340px;height:root.alpha-enabled ? 500px : 460px;
+        Rectangle {background:#252a32;border-width:1px;border-color:#718093;border-radius:8px;
+            VerticalLayout {padding:16px;spacing:10px;
+                Text {text:root.label;color:#f1f5f9;font-size:17px;font-weight:600;}
+                Text {text:"Choose a hue, then click or drag in the color area.";color:#b6c1cf;font-size:12px;wrap:word-wrap;}
+                square:=Rectangle {height:178px;
+                    background:@linear-gradient(90deg,#ffffff 0%,hsv(root.hue,1,1) 100%);
+                    Rectangle {background:@linear-gradient(180deg,#00000000 0%,#000000ff 100%);}
+                    Rectangle {x:root.saturation*(parent.width - 12px);y:(1 - root.brightness)*(parent.height - 12px);width:12px;height:12px;border-radius:6px;border-width:2px;border-color:white;background:#00000000;}
+                    TouchArea {
+                        function update(){root.saturation=clamp(self.mouse-x/self.width,0,1);root.brightness=1-clamp(self.mouse-y/self.height,0,1);}
+                        pointer-event(event)=>{if event.button==PointerEventButton.left && event.kind==PointerEventKind.down {self.update();}}
+                        moved=>{if self.pressed {self.update();}}
+                    }
+                }
+                Text {text:"Hue";color:#dbe3ee;font-size:12px;}
+                Rectangle {height:22px;
+                    background:@linear-gradient(90deg,#ff0000 0%,#ffff00 16.67%,#00ff00 33.33%,#00ffff 50%,#0000ff 66.67%,#ff00ff 83.33%,#ff0000 100%);
+                    Rectangle {x:root.hue/360*(parent.width - 6px);width:6px;height:parent.height;border-width:2px;border-color:white;background:#00000000;}
+                    TouchArea {
+                        function update(){root.hue=clamp(self.mouse-x/self.width,0,1)*360;}
+                        pointer-event(event)=>{if event.button==PointerEventButton.left && event.kind==PointerEventKind.down {self.update();}}
+                        moved=>{if self.pressed {self.update();}}
+                    }
+                }
+                for row in [0,1]: HorizontalLayout {spacing:8px;height:26px;
+                    for col in [0,1,2,3,4,5]: Rectangle {
+                        background:root.palette[row*6+col].tint;border-radius:4px;border-width:1px;border-color:#a0acbb;
+                        accessible-role:button;accessible-label:root.palette[row*6+col].name;
+                        TouchArea {clicked=>{root.set-draft(root.palette[row*6+col].tint);}}
+                    }
+                }
+                if root.alpha-enabled: HorizontalLayout {height:30px;spacing:8px;
+                    Text {text:"Opacity";color:#dbe3ee;font-size:12px;vertical-alignment:center;}
+                    Slider {minimum:0;maximum:1;value <=> root.alpha;}
+                    Text {text:round(root.alpha*100)+"%";color:#dbe3ee;vertical-alignment:center;}
+                }
+                Rectangle {height:26px;
+                    Image {width:parent.width;height:parent.height;source:@image-url("checker.svg");image-fit:cover;}
+                    Rectangle {background:root.draft;border-width:1px;border-color:#adb6c3;}
+                }
+                HorizontalLayout {height:30px;spacing:8px;
+                    Button {text:"Cancel";clicked=>{picker.close();}}
+                    Button {text:"Apply color";clicked=>{picker.close();root.chosen(root.draft);}}
+                }
+            }
+        }
+    }
+}

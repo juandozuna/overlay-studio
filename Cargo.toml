@@ -1,0 +1,29 @@
+[package]
+name = "overlay-studio"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "x11", "wayland"] }
+egui = { version = "0.36.2", features = ["serde"] }
+egui-wgpu = "0.36.2"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+rfd = "0.15"
+fontdb = "0.23"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
+libloading = "0.8"
+pollster = "0.4"
+tiny_http = "0.12"
+qrcode = { version = "0.14", default-features = false }
+if-addrs = "0.14"
+rand = "0.9"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+syphon-core = "0.4.0"
+syphon-wgpu = "0.4.3"
+
+[profile.release]
+lto = "thin"
+

@@ -1,0 +1,127 @@
+import { LineEdit, ComboBox, CheckBox, ScrollView, Button } from "std-widgets.slint";
+import { ColorField } from "color-picker.slint";
+export struct RemoteRow { id: string, label: string, col: int, row: int, span: int, height: int, tint: color, color-text: string, confirm: bool, action: int, field: int, clock: int, output: int, design: int, cue: int, amount: string, value: string }
+component Caption inherits Text { color: #a0a8b5; font-size: 12px; min-width:0px;preferred-width:100px;vertical-stretch:0;wrap:word-wrap; }
+component Field inherits LineEdit { min-width:0px;preferred-width:100px;horizontal-stretch:1;vertical-stretch:0; }
+export component RemotePanel inherits Rectangle {
+    callback color-to-text(color) -> string;
+    background: #17191e;
+    in property <[RemoteRow]> controls;
+    in-out property <RemoteRow> current;
+    in-out property <string> layout-name;
+    in-out property <string> ip;
+    in-out property <string> port;
+    in property <[string]> addresses;
+    in property <[string]> fields;
+    in property <[string]> clocks;
+    in property <[string]> outputs;
+    in property <[string]> designs;
+    in property <[string]> cues;
+    in property <bool> running;
+    in property <string> address;
+    in property <image> qr;
+    in-out property <bool> tablet;
+    callback command(string);
+    callback edit(string,string);
+    callback select(string);
+    callback place(string,int,int);
+    HorizontalLayout {
+        spacing: 1px;
+        Rectangle { width: 238px; background: #22252b;
+            VerticalLayout { padding: 12px; spacing: 10px;
+                Caption { text: "REMOTE CONTROLLER"; }
+                Field { text <=> root.layout-name; accepted=>{root.edit("layout",self.text);} }
+                Button { text: "Add button"; clicked=>{root.command("add");} }
+                Button { text: "Build team controls"; clicked=>{root.command("teams");} }
+                CheckBox { text: "Tablet preview"; checked <=> root.tablet; }
+                Caption { text: "CONNECT A DEVICE"; }
+                if !root.running: VerticalLayout { spacing: 8px;
+                    ComboBox { model: root.addresses; current-value <=> root.ip; }
+                    Field { text <=> root.port; placeholder-text: "Port"; }
+                    Button { text: "Start remote control"; clicked=>{root.command("start");} }
+                    Caption { text: "Use the computer’s LAN address. Phone and computer must share a reachable network."; wrap: word-wrap; }
+                }
+                if root.running: VerticalLayout { spacing: 8px;
+                    Image { source: root.qr; width: 204px; height: 204px; image-fit: contain; }
+                    Caption { text: root.address; wrap: word-wrap; }
+                    Button { text: "Copy pairing link"; clicked=>{root.command("copy-link");} }
+                    Button { text: "Stop remote and revoke QR"; clicked=>{root.command("stop");} }
+                    Caption { text: "Scan with your phone or iPad camera. Keep the desktop app running."; wrap: word-wrap; }
+                }
+                ScrollView { VerticalLayout { spacing: 4px;
+                    for item in root.controls: Button { text: item.label; clicked=>{root.select(item.id);} }
+                } }
+            }
+        }
+        Rectangle { background: #17191e;
+            VerticalLayout { padding: 16px; spacing: 12px;
+                Caption { text: "Drag buttons to arrange the browser controls · Use the inspector to configure their actions"; wrap: word-wrap; }
+                ScrollView {
+                    grid := Rectangle {
+                        y: 0px;
+                        width: min(parent.width,root.tablet ? 840px : 440px);
+                        height: 48*44px;
+                        background: #20242a;
+                        property <length> unit: self.width / 12;
+                        for column in 13: Rectangle {x:column*grid.unit;width:1px;height:parent.height;background:#303640;}
+                        for row in 49: Rectangle {y:row*44px;height:1px;width:parent.width;background:#303640;}
+                        for item in root.controls: Rectangle {
+                            x: item.col*grid.unit+3px;y:item.row*44px+3px;
+                            width: item.span*grid.unit - 6px;height:item.height*44px - 6px;
+                            background: item.tint;border-radius:6px;border-width:root.current.id==item.id ? 2px : 1px;border-color:root.current.id==item.id ? #64c9e5 : #56616e;
+                            accessible-role: button;accessible-label:item.label;
+                            Text {text:item.label;color:white;wrap:word-wrap;horizontal-alignment:center;vertical-alignment:center;}
+                            property <float> start-x;
+                            property <float> start-y;
+                            area:=TouchArea {
+                                pointer-event(event)=>{
+                                    if event.button==PointerEventButton.left {
+                                        if event.kind==PointerEventKind.down {
+                                            parent.start-x=self.mouse-x/1px;parent.start-y=self.mouse-y/1px;root.select(item.id);
+                                        } else if event.kind==PointerEventKind.up {
+                                            root.place(item.id,item.col+round((self.mouse-x/1px-parent.start-x)/(grid.unit/1px)),item.row+round((self.mouse-y/1px-parent.start-y)/44));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { width: 290px;background:#22252b;
+            ScrollView { VerticalLayout {padding:12px;spacing:10px;
+                Caption {text:"BUTTON INSPECTOR";}
+                if root.current.id=="": Caption {text:"Select or add a button.";}
+                if root.current.id!="": VerticalLayout {spacing:8px;
+                    Field {text <=> root.current.label;accepted=>{root.edit("label",self.text);}}
+                    Caption {text:"Column and row";}
+                    HorizontalLayout {
+                        Field {text:root.current.col;accepted=>{root.edit("col",self.text);}}
+                        Field {text:root.current.row;accepted=>{root.edit("row",self.text);}}
+                    }
+                    Caption {text:"Width and height in grid cells";}
+                    HorizontalLayout {
+                        Field {text:root.current.span;accepted=>{root.edit("width",self.text);}}
+                        Field {text:root.current.height;accepted=>{root.edit("height",self.text);}}
+                    }
+                    Caption {text:"Color";}
+                    ColorField {label:"Button color";value:root.current.tint;alpha-enabled:false;chosen(value)=>{root.edit("color",root.color-to-text(value));}}
+                    CheckBox {text:"Confirm before running";checked <=> root.current.confirm;toggled=>{root.edit("confirm",self.checked ? "true":"false");}}
+                    Caption {text:"Action";}
+                    ComboBox {model:["Adjust value","Start or pause clock","Reset clock","Adjust clock time","Show or hide output","Take design","Play animation","Set value","Run named cue"];current-index <=> root.current.action;selected=>{root.edit("action",self.current-index);}}
+                    if root.current.action==0 || root.current.action==7: ComboBox {model:root.fields;current-index <=> root.current.field;selected=>{root.edit("field",self.current-index);}}
+                    if root.current.action==0 || root.current.action==3: Field {text <=> root.current.amount;placeholder-text:"Signed amount";accepted=>{root.edit("amount",self.text);}}
+                    if root.current.action==7: Field {text <=> root.current.value;placeholder-text:"Value to set";accepted=>{root.edit("value",self.text);}}
+                    if root.current.action>=1 && root.current.action<=3: ComboBox {model:root.clocks;current-index <=> root.current.clock;selected=>{root.edit("clock",self.current-index);}}
+                    if root.current.action>=4 && root.current.action<=6: ComboBox {model:root.outputs;current-index <=> root.current.output;selected=>{root.edit("output",self.current-index);}}
+                    if root.current.action==5: ComboBox {model:root.designs;current-index <=> root.current.design;selected=>{root.edit("design",self.current-index);}}
+                    if root.current.action==8: ComboBox {model:root.cues;current-index <=> root.current.cue;selected=>{root.edit("cue",self.current-index);}}
+                    Button {text:"Duplicate button";clicked=>{root.command("duplicate");}}
+                    Button {text:"Delete button";clicked=>{root.command("delete");}}
+                    Caption {text:"Desktop clicks select buttons. Use the paired browser to run them.";wrap:word-wrap;}
+                }
+            } }
+        }
+    }
+}

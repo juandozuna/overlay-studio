@@ -1,0 +1,1233 @@
+{
+  "version": 1,
+  "name": "Community Cup",
+  "designs": [
+    {
+      "name": "Broadcast",
+      "width": 1920,
+      "height": 1080,
+      "elements": [
+        {
+          "id": 1,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 220.0,
+          "y": 820.0,
+          "w": 1480.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            18,
+            28,
+            43,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 2,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 220.0,
+          "y": 820.0,
+          "w": 555.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            14,
+            93,
+            122,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 3,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 1145.0,
+          "y": 820.0,
+          "w": 555.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            140,
+            74,
+            32,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 4,
+          "name": "home.name",
+          "kind": "Text",
+          "x": 232.0,
+          "y": 820.0,
+          "w": 370.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.name",
+          "font": "Default",
+          "font_size": 48.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 5,
+          "name": "home.score",
+          "kind": "Text",
+          "x": 590.0,
+          "y": 820.0,
+          "w": 185.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.score",
+          "font": "Default",
+          "font_size": 72.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 6,
+          "name": "clock",
+          "kind": "Text",
+          "x": 775.0,
+          "y": 820.0,
+          "w": 370.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "clock",
+          "font": "Default",
+          "font_size": 58.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 7,
+          "name": "away.score",
+          "kind": "Text",
+          "x": 1145.0,
+          "y": 820.0,
+          "w": 185.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.score",
+          "font": "Default",
+          "font_size": 72.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 8,
+          "name": "away.name",
+          "kind": "Text",
+          "x": 1330.0,
+          "y": 820.0,
+          "w": 358.0,
+          "h": 140.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.name",
+          "font": "Default",
+          "font_size": 48.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        }
+      ]
+    },
+    {
+      "name": "Corner score",
+      "width": 1920,
+      "height": 1080,
+      "elements": [
+        {
+          "id": 1,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 90.0,
+          "y": 80.0,
+          "w": 960.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            18,
+            28,
+            43,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 2,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 90.0,
+          "y": 80.0,
+          "w": 360.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            14,
+            93,
+            122,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 3,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 690.0,
+          "y": 80.0,
+          "w": 360.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            140,
+            74,
+            32,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 4,
+          "name": "home.name",
+          "kind": "Text",
+          "x": 102.0,
+          "y": 80.0,
+          "w": 240.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.name",
+          "font": "Default",
+          "font_size": 48.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 5,
+          "name": "home.score",
+          "kind": "Text",
+          "x": 330.0,
+          "y": 80.0,
+          "w": 120.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.score",
+          "font": "Default",
+          "font_size": 72.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 6,
+          "name": "clock",
+          "kind": "Text",
+          "x": 450.0,
+          "y": 80.0,
+          "w": 240.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "clock",
+          "font": "Default",
+          "font_size": 58.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 7,
+          "name": "away.score",
+          "kind": "Text",
+          "x": 690.0,
+          "y": 80.0,
+          "w": 120.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.score",
+          "font": "Default",
+          "font_size": 72.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 8,
+          "name": "away.name",
+          "kind": "Text",
+          "x": 810.0,
+          "y": 80.0,
+          "w": 228.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.name",
+          "font": "Default",
+          "font_size": 48.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        }
+      ]
+    },
+    {
+      "name": "Game night",
+      "width": 1920,
+      "height": 1080,
+      "elements": [
+        {
+          "id": 1,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 260.0,
+          "y": 280.0,
+          "w": 600.0,
+          "h": 500.0,
+          "rotation": 0.0,
+          "fill": [
+            14,
+            93,
+            122,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 2,
+          "name": "Rectangle panel",
+          "kind": "Rectangle",
+          "x": 1060.0,
+          "y": 280.0,
+          "w": 600.0,
+          "h": 500.0,
+          "rotation": 0.0,
+          "fill": [
+            140,
+            74,
+            32,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 3,
+          "name": "home.name",
+          "kind": "Text",
+          "x": 300.0,
+          "y": 320.0,
+          "w": 520.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.name",
+          "font": "Default",
+          "font_size": 70.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 4,
+          "name": "away.name",
+          "kind": "Text",
+          "x": 1100.0,
+          "y": 320.0,
+          "w": 520.0,
+          "h": 120.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.name",
+          "font": "Default",
+          "font_size": 70.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 5,
+          "name": "home.score",
+          "kind": "Text",
+          "x": 300.0,
+          "y": 450.0,
+          "w": 520.0,
+          "h": 270.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "home.score",
+          "font": "Default",
+          "font_size": 210.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 6,
+          "name": "away.score",
+          "kind": "Text",
+          "x": 1100.0,
+          "y": 450.0,
+          "w": 520.0,
+          "h": 270.0,
+          "rotation": 0.0,
+          "fill": [
+            241,
+            247,
+            255,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "away.score",
+          "font": "Default",
+          "font_size": 210.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 7,
+          "name": "clock",
+          "kind": "Text",
+          "x": 800.0,
+          "y": 820.0,
+          "w": 320.0,
+          "h": 90.0,
+          "rotation": 0.0,
+          "fill": [
+            45,
+            40,
+            62,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "clock",
+          "font": "Default",
+          "font_size": 70.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        },
+        {
+          "id": 8,
+          "name": "event",
+          "kind": "Text",
+          "x": 560.0,
+          "y": 80.0,
+          "w": 800.0,
+          "h": 110.0,
+          "rotation": 0.0,
+          "fill": [
+            45,
+            40,
+            62,
+            255
+          ],
+          "stroke": [
+            240,
+            240,
+            255,
+            255
+          ],
+          "stroke_width": 0.0,
+          "radius": 16.0,
+          "opacity": 1.0,
+          "text": "",
+          "binding": "event",
+          "font": "Default",
+          "font_size": 64.0,
+          "hidden": false,
+          "locked": false,
+          "group": null,
+          "asset": null,
+          "motion": null,
+          "animation": "Slide",
+          "duration": 0.35,
+          "keyframes": [],
+          "loop_animation": false
+        }
+      ]
+    }
+  ],
+  "assets": [],
+  "motions": [],
+  "values": {
+    "away.name": "LIONS",
+    "away.score": "9",
+    "clock": "02:15",
+    "clock2": "01:28",
+    "event": "COMMUNITY CUP",
+    "home.name": "EAGLES",
+    "home.score": "12",
+    "round": "2",
+    "team3.name": "TEAM 3",
+    "team3.score": "0",
+    "team4.name": "TEAM 4",
+    "team4.score": "0",
+    "team5.name": "TEAM 5",
+    "team5.score": "5"
+  },
+  "routes": [
+    {
+      "name": "Overlay Studio Slint Validation Syphon",
+      "design": 0,
+      "protocol": "Syphon",
+      "fps": 30
+    },
+    {
+      "name": "Overlay Studio Slint Validation NDI",
+      "design": 2,
+      "protocol": "Ndi",
+      "fps": 30
+    }
+  ],
+  "clock_seconds": 134.9795955419993,
+  "countdown": true,
+  "teams": [
+    {
+      "id": 1,
+      "label": "Home",
+      "name_key": "home.name",
+      "score_key": "home.score",
+      "color": [
+        19,
+        95,
+        123
+      ],
+      "steps": [
+        -1,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": 2,
+      "label": "Away",
+      "name_key": "away.name",
+      "score_key": "away.score",
+      "color": [
+        134,
+        72,
+        34
+      ],
+      "steps": [
+        -1,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": 3,
+      "label": "Team 3",
+      "name_key": "team3.name",
+      "score_key": "team3.score",
+      "color": [
+        35,
+        105,
+        146
+      ],
+      "steps": [
+        -1,
+        1
+      ]
+    },
+    {
+      "id": 4,
+      "label": "Team 4",
+      "name_key": "team4.name",
+      "score_key": "team4.score",
+      "color": [
+        35,
+        105,
+        146
+      ],
+      "steps": [
+        -1,
+        1
+      ]
+    },
+    {
+      "id": 5,
+      "label": "Team 5",
+      "name_key": "team5.name",
+      "score_key": "team5.score",
+      "color": [
+        35,
+        105,
+        146
+      ],
+      "steps": [
+        -1,
+        1,
+        5,
+        10
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": 1,
+      "name": "Game clock",
+      "value_key": "clock",
+      "seconds": 134.9795955419993,
+      "reset_seconds": 600.0,
+      "countdown": true
+    },
+    {
+      "id": 2,
+      "name": "Clock 2",
+      "value_key": "clock2",
+      "seconds": 87.46437879100051,
+      "reset_seconds": 300.0,
+      "countdown": true
+    }
+  ],
+  "cue_rules": [],
+  "controller": {
+    "name": "Game controls",
+    "controls": [
+      {
+        "id": 1,
+        "label": "Eagles +1",
+        "col": 0,
+        "row": 0,
+        "width": 6,
+        "height": 2,
+        "color": [
+          19,
+          95,
+          123
+        ],
+        "confirm": false,
+        "action": {
+          "Adjust": {
+            "field": "home.score",
+            "step": 1
+          }
+        }
+      },
+      {
+        "id": 2,
+        "label": "Lions +1",
+        "col": 6,
+        "row": 0,
+        "width": 6,
+        "height": 2,
+        "color": [
+          134,
+          72,
+          34
+        ],
+        "confirm": false,
+        "action": {
+          "Adjust": {
+            "field": "away.score",
+            "step": 1
+          }
+        }
+      },
+      {
+        "id": 3,
+        "label": "Eagles −1",
+        "col": 0,
+        "row": 2,
+        "width": 6,
+        "height": 2,
+        "color": [
+          19,
+          95,
+          123
+        ],
+        "confirm": false,
+        "action": {
+          "Adjust": {
+            "field": "home.score",
+            "step": -1
+          }
+        }
+      },
+      {
+        "id": 4,
+        "label": "Lions −1",
+        "col": 6,
+        "row": 2,
+        "width": 6,
+        "height": 2,
+        "color": [
+          134,
+          72,
+          34
+        ],
+        "confirm": false,
+        "action": {
+          "Adjust": {
+            "field": "away.score",
+            "step": -1
+          }
+        }
+      },
+      {
+        "id": 5,
+        "label": "Start / pause",
+        "col": 0,
+        "row": 4,
+        "width": 6,
+        "height": 2,
+        "color": [
+          19,
+          95,
+          123
+        ],
+        "confirm": false,
+        "action": "ClockToggle"
+      },
+      {
+        "id": 6,
+        "label": "Show / hide overlay",
+        "col": 6,
+        "row": 4,
+        "width": 6,
+        "height": 2,
+        "color": [
+          134,
+          72,
+          34
+        ],
+        "confirm": false,
+        "action": {
+          "ToggleOverlay": {
+            "route": 0
+          }
+        }
+      },
+      {
+        "id": 7,
+        "label": "Play entrance",
+        "col": 0,
+        "row": 6,
+        "width": 6,
+        "height": 2,
+        "color": [
+          19,
+          95,
+          123
+        ],
+        "confirm": false,
+        "action": {
+          "Cue": {
+            "route": 0
+          }
+        }
+      },
+      {
+        "id": 8,
+        "label": "Show game night",
+        "col": 6,
+        "row": 6,
+        "width": 6,
+        "height": 2,
+        "color": [
+          134,
+          72,
+          34
+        ],
+        "confirm": false,
+        "action": {
+          "Take": {
+            "route": 0,
+            "design": 2
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+import {Button,CheckBox,ComboBox,LineEdit,ScrollView} from "std-widgets.slint";
+export struct CueRow {id:string,name:string,summary:string,enabled:bool,event:int,source:int,target:int,output:int,design:int,field:int,value:string,linked:int}
+component Caption inherits Text {color:#a9b5c4;font-size:12px;min-width:0px;vertical-stretch:0;wrap:word-wrap;}
+component Field inherits LineEdit {min-width:0px;preferred-width:160px;horizontal-stretch:1;}
+export component EventsPanel inherits Rectangle {
+    background:#22252b;
+    in property <[CueRow]> rules;
+    in-out property <CueRow> current;
+    in property <[string]> fields;
+    in property <[string]> clocks;
+    in property <[string]> outputs;
+    in property <[string]> designs;
+    callback command(string);
+    callback select(string);
+    callback edit(string,string);
+    VerticalLayout {padding:10px;spacing:8px;
+        HorizontalLayout {height:30px;spacing:8px;
+            Caption {text:"EVENT RULES";}
+            Button {text:"Add rule";clicked=>{root.command("add");}}
+            Button {text:"Duplicate";enabled:root.current.id!="";clicked=>{root.command("duplicate");}}
+            Button {text:"Run now";enabled:root.current.id!="";clicked=>{root.command("run");}}
+            Button {text:"Delete rule";enabled:root.current.id!="";clicked=>{root.command("delete");}}
+        }
+        HorizontalLayout {spacing:12px;
+            ScrollView {width:260px;
+                VerticalLayout {alignment:start;spacing:6px;
+                    for rule in root.rules: Rectangle {
+                        height:68px;background:rule.id==root.current.id ? #24505f:#292d34;border-radius:4px;
+                        accessible-role:button;accessible-label:rule.name;
+                        VerticalLayout {padding:8px;spacing:3px;
+                            Caption {text:(rule.enabled ? "Enabled · ":"Disabled · ")+rule.name;}
+                            Caption {text:rule.summary;}
+                        }
+                        TouchArea {clicked=>{root.select(rule.id);}}
+                    }
+                    if root.rules.length==0: Caption{text:"Add a rule to connect a score or clock event to a visual cue.";}
+                }
+            }
+            ScrollView {
+                VerticalLayout {alignment:start;spacing:8px;
+                    if root.current.id=="": Caption {text:"Select or add a rule.";}
+                    if root.current.id!="": VerticalLayout {spacing:8px;
+                        HorizontalLayout {height:30px;spacing:8px;
+                            Field {text <=> root.current.name;placeholder-text:"Rule name";accepted=>{root.edit("name",self.text);}}
+                            CheckBox {text:"Enabled";checked <=> root.current.enabled;toggled=>{root.edit("enabled",self.checked ? "true":"false");}}
+                        }
+                        HorizontalLayout {height:30px;spacing:8px;
+                            Caption {text:"When";max-width:60px;}
+                            ComboBox {min-width:0px;model:["Score added","Score removed","Clock started","Clock reset","Clock finished"];current-index <=> root.current.event;selected=>{root.edit("event",self.current-index);}}
+                            Caption {text:"Source";max-width:60px;}
+                            ComboBox {min-width:0px;model:root.current.event<2 ? root.fields:root.clocks;current-index <=> root.current.source;selected=>{root.edit("source",self.current-index);}}
+                        }
+                        HorizontalLayout {height:30px;spacing:8px;
+                            Caption {text:"Then";max-width:60px;}
+                            ComboBox {min-width:0px;model:["Replay animation","Take design","Set value"];current-index <=> root.current.target;selected=>{root.edit("target",self.current-index);}}
+                            if root.current.target<2: ComboBox {min-width:0px;model:root.outputs;current-index <=> root.current.output;selected=>{root.edit("output",self.current-index);}}
+                            if root.current.target==2: ComboBox {min-width:0px;model:root.fields;current-index <=> root.current.field;selected=>{root.edit("field",self.current-index);}}
+                        }
+                        if root.current.target==1: HorizontalLayout {height:30px;spacing:8px;
+                            Caption {text:"Design";max-width:60px;}
+                            ComboBox {min-width:0px;model:root.designs;current-index <=> root.current.design;selected=>{root.edit("design",self.current-index);}}
+                        }
+                        if root.current.target==2: HorizontalLayout {height:30px;spacing:8px;
+                            Caption {text:"Value";max-width:60px;}
+                            Field {text <=> root.current.value;placeholder-text:"Value to set";accepted=>{root.edit("value",self.text);}}
+                        }
+                        Caption {text:"Enabled controls automatic triggers. Run now executes the action even when disabled. Replay and Take need a running output.";}
+                        if root.current.linked>0: Caption {text:"Deleting this rule also removes "+root.current.linked+" linked remote button(s). Undo restores both.";}
+                    }
+                }
+            }
+        }
+    }
+}

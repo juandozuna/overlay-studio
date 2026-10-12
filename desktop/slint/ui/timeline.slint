@@ -1,0 +1,100 @@
+import { Button, CheckBox, ComboBox, LineEdit, ScrollView, Slider } from "std-widgets.slint";
+export struct FrameDot { index:int,time:float,selected:bool }
+export struct AnimationRow { id:string,name:string,selected:bool,frames:[FrameDot] }
+export struct FramePose { layer:string,has-frame:bool,time:string,x:string,y:string,w:string,h:string,rotation:string,opacity:string,easing:int,preset:int,duration:string,looping:bool }
+component Caption inherits Text {color:#a0a8b5;font-size:11px;vertical-stretch:0;min-width:0px;wrap:word-wrap;}
+component Field inherits LineEdit {min-width:0px;preferred-width:70px;horizontal-stretch:1;}
+export component TimelinePanel inherits Rectangle {
+    background:#22252b;
+    in property <[AnimationRow]> layers;
+    in-out property <FramePose> pose;
+    in-out property <float> time;
+    in-out property <bool> extend;
+    in-out property <float> span:10;
+    in property <bool> playing;
+    in property <bool> preview;
+    callback command(string);
+    callback edit(string,string);
+    callback select(string,int,bool);
+    callback move(string,int,float);
+    callback seek(float);
+    VerticalLayout {padding:8px;spacing:8px;
+        HorizontalLayout {height:30px;spacing:6px;
+            Button{text:root.playing ? "Pause":"Play";clicked=>{root.command("play");}}
+            Button{text:"Restart";clicked=>{root.command("restart");}}
+            Button{text:root.preview ? "Show base pose":"Preview";clicked=>{root.command("preview");}}
+            Caption{text:"Time seconds";}
+            Field{max-width:75px;text:root.time;accepted=>{root.edit("seek",self.text);}}
+            Slider{minimum:0;maximum:root.span;value:root.time;changed(value)=>{root.seek(value);}}
+            Caption{text:"View seconds";}
+            Field{max-width:60px;text:root.span;accepted=>{root.edit("span",self.text);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Button{text:"Add keyframe";clicked=>{root.command("add");}}
+            CheckBox{text:"Select multiple";checked <=> root.extend;}
+            Button{text:"Copy";clicked=>{root.command("copy");}}
+            Button{text:"Paste";clicked=>{root.command("paste");}}
+            Button{text:"Delete";clicked=>{root.command("delete");}}
+        }
+        HorizontalLayout {spacing:10px;
+            ScrollView {
+                VerticalLayout {spacing:0px;
+                    HorizontalLayout {height:26px;
+                        Caption{width:150px;text:"LAYERS";}
+                        ruler:=Rectangle {
+                            background:#191c22;
+                            for tick in 11: Caption{x:tick*parent.width/10;text:round(tick*root.span/10*10)/10+"s";}
+                            TouchArea{clicked=>{root.seek(clamp(self.mouse-x/parent.width*root.span,0,root.span));}}
+                        }
+                    }
+                    for item in root.layers: HorizontalLayout {height:30px;
+                        Rectangle {width:150px;background:item.selected ? #24505f:#22252b;
+                            Text{text:item.name;color:#d5dce5;font-size:12px;vertical-alignment:center;overflow:elide;}
+                            TouchArea{clicked=>{root.select(item.id,-1,false);}}
+                        }
+                        track:=Rectangle {
+                            clip:true;
+                            background:item.selected ? #242e38:#191c22;
+                            for tick in 11: Rectangle{x:tick*parent.width/10;width:1px;height:parent.height;background:#303641;}
+                            Rectangle{x:root.time/root.span*parent.width;width:1px;height:parent.height;background:#e7c26b;}
+                            TouchArea{clicked=>{root.seek(clamp(self.mouse-x/parent.width*root.span,0,root.span));}}
+                            for frame in item.frames: Rectangle {
+                                x:frame.time/root.span*parent.width - 8px;y:0px;width:16px;height:30px;
+                                Rectangle {x:2px;y:8px;width:12px;height:12px;background:frame.selected ? #f0c779:#63bdd4;transform-rotation:45deg;}
+                                accessible-role:button;accessible-label:item.name+" keyframe at "+frame.time+" seconds";
+                                property <float> start;
+                                property <float> world-x: handle.absolute-position.x/1px + handle.mouse-x/1px;
+                                handle:=TouchArea {
+                                    pointer-event(event)=>{
+                                        if event.button==PointerEventButton.left {
+                                            if event.kind==PointerEventKind.down {parent.start=parent.world-x;root.select(item.id,frame.index,root.extend || event.modifiers.shift);}
+                                            else if event.kind==PointerEventKind.up {root.move(item.id,frame.index,(parent.world-x - parent.start)/(track.width/1px)*root.span);}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle{height:1px;}
+                }
+            }
+            ScrollView {width:310px;VerticalLayout{spacing:6px;
+                Caption{text:root.pose.layer=="" ? "Select a layer":"ANIMATION · "+root.pose.layer;}
+                if root.pose.layer!="": VerticalLayout{spacing:6px;
+                    HorizontalLayout{ComboBox{min-width:0px;model:["None","Fade","Slide","Pop"];current-index <=> root.pose.preset;selected=>{root.edit("preset",self.current-index);}}
+                        CheckBox{text:"Loop";checked <=> root.pose.looping;toggled=>{root.edit("loop",self.checked ? "true":"false");}}
+                    }
+                    HorizontalLayout{Caption{text:"Duration seconds";}Field{text <=> root.pose.duration;accepted=>{root.edit("duration",self.text);}}}
+                    if !root.pose.has-frame: Caption{text:"Add a keyframe at the playhead, then select its diamond to edit the pose.";}
+                    if root.pose.has-frame: VerticalLayout{spacing:4px;
+                        HorizontalLayout{Caption{text:"Time";}Field{text <=> root.pose.time;accepted=>{root.edit("time",self.text);}}Caption{text:"Opacity";}Field{text <=> root.pose.opacity;accepted=>{root.edit("opacity",self.text);}}}
+                        HorizontalLayout{Caption{text:"X";}Field{text <=> root.pose.x;accepted=>{root.edit("x",self.text);}}Caption{text:"Y";}Field{text <=> root.pose.y;accepted=>{root.edit("y",self.text);}}}
+                        HorizontalLayout{Caption{text:"W";}Field{text <=> root.pose.w;accepted=>{root.edit("w",self.text);}}Caption{text:"H";}Field{text <=> root.pose.h;accepted=>{root.edit("h",self.text);}}}
+                        HorizontalLayout{Caption{text:"Rotation";}Field{text <=> root.pose.rotation;accepted=>{root.edit("rotation",self.text);}}ComboBox{min-width:0px;model:["Linear","Ease out","Ease in out","Hold"];current-index <=> root.pose.easing;selected=>{root.edit("easing",self.current-index);}}}
+                    }
+                }
+            }}
+        }
+        Caption{text:"Drag diamonds to change time · Copy and paste aligns the first copied frame to the playhead · Take design publishes animation edits";}
+    }
+}

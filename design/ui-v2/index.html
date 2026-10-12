@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Overlay Studio — UI design proposal</title>
+    <link rel="stylesheet" href="prototype.css" />
+    <script src="prototype.js" defer></script>
+  </head>
+  <body>
+    <header class="titlebar">
+      <div class="brand">
+        <img src="assets/icons/layers.svg" alt="" /><strong
+          >Overlay Studio</strong
+        ><span class="concept">DESIGN CONCEPT</span>
+      </div>
+      <div class="project-name">
+        Community Cup <span class="muted">/ Show design</span>
+      </div>
+      <div class="title-actions">
+        <button class="icon-button" title="Open project">
+          <img src="assets/icons/folder-open.svg" alt="Open project" /></button
+        ><button class="subtle" id="save-concept">
+          <img src="assets/icons/save.svg" alt="" />Save
+        </button>
+      </div>
+    </header>
+    <nav class="workspace-bar" aria-label="Workspaces">
+      <div class="workspace-tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-workspace="design">
+          <img src="assets/icons/mouse-pointer-2.svg" alt="" />Design
+        </button>
+        <button role="tab" aria-selected="false" data-workspace="animate">
+          <img src="assets/icons/diamond.svg" alt="" />Animate
+        </button>
+        <button role="tab" aria-selected="false" data-workspace="live">
+          <img src="assets/icons/radio.svg" alt="" />Live
+        </button>
+        <button role="tab" aria-selected="false" data-workspace="remote">
+          <img src="assets/icons/smartphone.svg" alt="" />Remote
+        </button>
+      </div>
+      <div class="workspace-actions">
+        <button
+          class="icon-button"
+          id="undo-demo"
+          title="Undo last simulated score change"
+        >
+          <img src="assets/icons/undo-2.svg" alt="Undo" /></button
+        ><span class="divider"></span
+        ><span class="output-indicator"><i></i>Output monitor</span
+        ><button class="subtle" id="outputs-button">
+          <img src="assets/icons/monitor.svg" alt="" />Outputs
+        </button>
+      </div>
+    </nav>
+    <main id="workspace" aria-label="Design workspace"></main>
+    <footer>
+      <span id="feedback" role="status"
+        >Design proposal · simulated data · no live outputs connected</span
+      ><span
+        >1920 × 1080 <span class="divider"></span>Alpha canvas
+        <span class="divider"></span>100%</span
+      >
+    </footer>
+    <dialog id="proposal-dialog">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-text"></p>
+      <button class="primary" id="dialog-close">Got it</button>
+    </dialog>
+  </body>
+</html>

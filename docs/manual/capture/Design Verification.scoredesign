@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "design": {
+    "name": "Design Verification",
+    "width": 1280,
+    "height": 720,
+    "elements": [
+      {
+        "id": 9,
+        "name": "Rectangle",
+        "kind": "Rectangle",
+        "x": 340.0,
+        "y": 150.0,
+        "w": 320.0,
+        "h": 140.0,
+        "rotation": 44.90319,
+        "fill": [
+          170,
+          101,
+          31,
+          255
+        ],
+        "stroke": [
+          240,
+          240,
+          255,
+          255
+        ],
+        "stroke_width": 6.0,
+        "radius": 16.0,
+        "opacity": 1.0,
+        "text": "Your text",
+        "binding": "",
+        "font": "Default",
+        "font_size": 64.0,
+        "text_align": "Center",
+        "hidden": false,
+        "locked": false,
+        "group": null,
+        "asset": null,
+        "motion": null,
+        "animation": "Slide",
+        "duration": 0.35,
+        "keyframes": [],
+        "loop_animation": false
+      }
+    ]
+  },
+  "assets": [],
+  "motions": []
+}

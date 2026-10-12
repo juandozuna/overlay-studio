@@ -1,0 +1,25 @@
+# Build artifacts
+/target/
+/dist/
+**/target/
+**/dist/
+*.autosave.json
+
+# Local tooling / caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+graphify-out/
+
+# Manual QA scratch (keep source screenshots + final PDF)
+docs/manual/qa/
+docs/manual/qa-*/
+docs/manual/capture/*.app/
+docs/manual/output/*.docx
+docs/manual/*.docx
+
+# Editor / OS
+*.swp
+.idea/
+.vscode/

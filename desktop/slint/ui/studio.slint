@@ -1,0 +1,664 @@
+import { LineEdit, TextEdit, ComboBox, CheckBox, ScrollView, Slider } from "std-widgets.slint";
+import { RemotePanel, RemoteRow } from "remote.slint";
+import { ColorField } from "color-picker.slint";
+import { TimelinePanel, AnimationRow, FramePose } from "timeline.slint";
+import { EventsPanel, CueRow } from "events.slint";
+
+export struct LayerRow { id: string, name: string, selected: bool, hidden: bool, locked: bool }
+export struct TeamRow { index: int, label: string, name: string, score: string, field: string, color: color, color-text: string, steps: [string], steps-text: string }
+export struct ClockRow { index: int, name: string, time: string, reset: string, running: bool, countdown: bool }
+export struct LiveValueRow {key:string,label:string,value:string,draft:string,generation:string}
+export struct OutputRow { index: int, name: string, protocol-index: int, fps-index: int, design: int, program-name: string, running: bool, visible: bool, status: string }
+component Control inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> selected;
+    in property <bool> enabled: true;
+    callback invoked();
+    callback pointer-gesture(int,float,float);
+    min-width: 32px; height: 30px; border-radius: 4px;
+    background: selected ? #24505f : area.has-hover ? #363b44 : #292d34;
+    border-width: 1px; border-color: selected ? #53b5d3 : #3c424c;
+    accessible-role: button; accessible-label: label;
+    HorizontalLayout {
+        padding-left: 8px; padding-right: 8px; spacing: 6px;
+        if root.icon.width > 0: Image { source: root.icon; width: 15px; height: 15px; colorize: #d5dce5; }
+        if root.label != "": Text { text: root.label; color: #d5dce5; font-size: 12px; vertical-alignment: center; }
+    }
+    opacity: enabled ? 1 : 0.4;
+    area := TouchArea {
+        enabled: root.enabled; clicked => { root.invoked(); }
+        pointer-event(event)=>{if event.button==PointerEventButton.left{root.pointer-gesture(event.kind==PointerEventKind.down ? 0 : 2,(self.absolute-position.x+self.mouse-x)/1px,(self.absolute-position.y+self.mouse-y)/1px);}}
+    }
+}
+component Label inherits Text { color: #a0a8b5; font-size: 11px; vertical-alignment: center; }
+component Field inherits LineEdit { min-width: 0px; preferred-width: 80px; horizontal-stretch: 1; }
+component Handle inherits Rectangle {
+    width: 8px; height: 8px; background: #64c9e5; border-width: 1px; border-color: #17222c;
+    callback gesture(int,float,float,bool);
+    property <bool> proportional;
+    in property <float> angle;
+    property <float> world-x: self.absolute-position.x/1px + Math.cos(root.angle*1deg)*area.mouse-x/1px - Math.sin(root.angle*1deg)*area.mouse-y/1px;
+    property <float> world-y: self.absolute-position.y/1px + Math.sin(root.angle*1deg)*area.mouse-x/1px + Math.cos(root.angle*1deg)*area.mouse-y/1px;
+    area := TouchArea {
+        pointer-event(event) => {
+            if event.button==PointerEventButton.left {
+                root.proportional=event.modifiers.shift;
+                root.gesture(event.kind==PointerEventKind.down ? 0 : 2,root.world-x,root.world-y,root.proportional);
+            }
+        }
+        moved => { if self.pressed { root.gesture(1,root.world-x,root.world-y,root.proportional); } }
+    }
+}
+
+export component StudioWindow inherits Window {
+    title: "Overlay Studio";
+    preferred-width: 1320px; preferred-height: 850px;
+    min-width: 1000px; min-height: 650px;
+    background: #17191e; default-font-family: "Helvetica Neue"; default-font-size: 13px;
+    in-out property <image> canvas-texture;
+    in-out property <image> program-texture;
+    in-out property <bool> program-available;
+    in-out property <int> monitor-output;
+    in-out property <string> program-label;
+    in-out property <string> project-name;
+    in-out property <string> status: "Starting GPU…";
+    in-out property <bool> dirty;
+    in-out property <bool> project-is-new;
+    in-out property <bool> io-busy;
+    in-out property <bool> media-import-busy;
+    in-out property <bool> media-import-cancelling;
+    in-out property <bool> recovery-visible;
+    in-out property <string> recovery-project;
+    in-out property <string> recovery-detail;
+    callback recovery-command(string);
+    in-out property <bool> can-undo;
+    in-out property <bool> can-redo;
+    in-out property <int> workspace: 0;
+    in-out property <bool> ai-open;
+    in-out property <string> ai-brief: "Create a balanced scoreboard with clear team names, prominent scores, and the clock centered between them.";
+    in-out property <string> ai-status;
+    in-out property <bool> ai-ready;
+    in-out property <bool> ai-busy;
+    in-out property <bool> ai-cancelling;
+    in-out property <bool> ai-has-proposal;
+    callback ai-command(string);
+    in-out property <[LiveValueRow]> live-values;
+    callback live-value-apply(string,string);
+    in-out property <string> new-field-name;
+    callback live-field-command(string,string);
+    in-out property <[AnimationRow]> animation-layers;
+    in-out property <FramePose> animation-pose;
+    in-out property <float> animation-time;
+    in-out property <float> animation-span: 10;
+    in-out property <bool> animation-playing;
+    in-out property <bool> animation-preview;
+    in-out property <bool> event-editor;
+    in-out property <[CueRow]> event-rules;
+    in-out property <CueRow> event-current;
+    in-out property <[string]> event-fields;
+    in-out property <[string]> event-clocks;
+    callback event-command(string);
+    callback event-edit(string,string);
+    callback event-select(string);
+    in-out property <bool> animation-extend;
+    callback animation-command(string);
+    callback animation-edit(string,string);
+    callback animation-select(string,int,bool);
+    callback animation-move(string,int,float);
+    callback animation-seek(float);
+    in-out property <[RemoteRow]> remote-controls;
+    in-out property <RemoteRow> remote-current;
+    in-out property <string> remote-name;
+    in-out property <string> remote-ip;
+    in-out property <string> remote-port: "9876";
+    in-out property <[string]> remote-addresses;
+    in-out property <[string]> remote-fields;
+    in-out property <[string]> remote-clocks;
+    in-out property <[string]> remote-cues;
+    in-out property <bool> remote-running;
+    in-out property <bool> remote-tablet;
+    in-out property <string> remote-address;
+    in-out property <image> remote-qr;
+    callback remote-command(string);
+    callback remote-edit(string,string);
+    callback remote-select(string);
+    callback remote-place(string,int,int);
+    in-out property <int> tool: 0;
+    in-out property <int> active-design;
+    in-out property <[string]> designs;
+    in-out property <[LayerRow]> layers;
+    in-out property <[TeamRow]> teams;
+    in-out property <[ClockRow]> clocks;
+    in-out property <[OutputRow]> outputs;
+    in-out property <[string]> outputs-names;
+    in-out property <bool> setup;
+    in-out property <[string]> fonts;
+    in-out property <[string]> fields;
+    in-out property <string> design-name;
+    in-out property <float> canvas-width: 1920;
+    in-out property <float> canvas-height: 1080;
+    in-out property <bool> selection-visible;
+    in-out property <string> layer-name;
+    in-out property <string> text-content;
+    in-out property <string> binding;
+    in-out property <int> binding-index;
+    in-out property <string> font;
+    in-out property <int> font-index;
+    in-out property <float> layer-x;
+    in-out property <float> layer-y;
+    in-out property <float> layer-w;
+    in-out property <float> layer-h;
+    in-out property <float> layer-rotation;
+    in-out property <float> layer-opacity;
+    in-out property <float> font-size;
+    in-out property <string> draft-x;
+    in-out property <string> draft-y;
+    in-out property <string> draft-w;
+    in-out property <string> draft-h;
+    in-out property <string> draft-rotation;
+    in-out property <string> draft-opacity;
+    in-out property <string> draft-font-size;
+    in-out property <string> canvas-name-edit;
+    in-out property <string> canvas-width-edit;
+    in-out property <string> canvas-height-edit;
+    in-out property <string> stroke-width-edit;
+    in-out property <string> corners-edit;
+    in-out property <color> fill-color;
+    in-out property <color> stroke-color;
+    callback color-to-text(color,bool) -> string;
+    in-out property <bool> text-layer;
+    in-out property <bool> rectangle-layer;
+    in-out property <int> text-align-index;
+    in-out property <float> selection-x;
+    in-out property <float> selection-y;
+    in-out property <float> selection-w;
+    in-out property <float> selection-h;
+    in-out property <float> selection-rotation;
+    in-out property <float> zoom: 1;
+    in-out property <float> pan-x;
+    in-out property <float> pan-y;
+    out property <float> canvas-origin-x: artwork.absolute-position.x/1px;
+    out property <float> canvas-origin-y: artwork.absolute-position.y/1px;
+    out property <float> canvas-scale: stage.view-scale;
+    in-out property <bool> layer-hidden;
+    in-out property <bool> layer-locked;
+    in-out property <bool> snap: true;
+    in-out property <bool> extend-selection;
+    callback command(string);
+    callback choose-design(int);
+    callback choose-layer(string);
+    callback edit-property(string, string);
+    callback filter-fonts(string);
+    callback score(string, int);
+    callback score-step(string, string);
+    callback configure(string, int, string, string);
+    callback clock-action(int, string);
+    callback output-action(int, string);
+    callback choose-monitor(int);
+    callback canvas-pointer(int, float, float,bool,bool);
+    callback canvas-handle(int,int,float,float,bool,float,float);
+    callback shortcut(string,bool,bool) -> bool;
+    callback palette-drop(int,int,float,float);
+    VerticalLayout {
+        spacing: 1px;
+        Rectangle {
+            height: 48px; background: #22252b;
+            HorizontalLayout {
+                padding: 10px; spacing: 8px;
+                Text { text: "Overlay Studio"; color: #eef2f7; font-weight: 600; }
+                Field { max-width: 200px; text <=> root.project-name;accepted=>{root.command("rename-project");} }
+                Label { text: root.project-is-new ? "New project" : root.dirty ? "Unsaved" : "Saved"; }
+                Rectangle { horizontal-stretch: 1; }
+                Control { label: "New";enabled: !root.io-busy;invoked=>{root.command("new-project");} }
+                Control { label: "Open"; enabled: !root.io-busy; icon: @image-url("../../../design/ui-v2/assets/icons/folder-open.svg"); invoked => { root.command("open"); } }
+                Control { label: "Save"; enabled: !root.io-busy; icon: @image-url("../../../design/ui-v2/assets/icons/save.svg"); invoked => { root.command("save"); } }
+                Control { label: "Save as"; enabled: !root.io-busy; invoked => { root.command("save-as"); } }
+                if root.workspace==0: Control { label: "Import design"; enabled: !root.io-busy; invoked => { root.command("import-design"); } }
+                if root.workspace==0: Control { label: "Export design"; enabled: !root.io-busy; invoked => { root.command("export-design"); } }
+            }
+        }
+        Rectangle {
+            height: 40px; background: #22252b;
+            HorizontalLayout {
+                padding-left: 10px; padding-right: 10px; spacing: 6px;
+                Control { label: "Design"; selected: root.workspace==0; invoked => { root.workspace=0; } }
+                Control { label: "Live"; selected: root.workspace==1; invoked => { root.workspace=1; } }
+                Control { label: "Remote"; selected: root.workspace==2; invoked => { root.workspace=2; } }
+                Control { label: "Animate"; selected: root.workspace==3; invoked => { root.workspace=3; } }
+                if root.workspace==3: Control {label:root.event-editor ? "Timeline":"Events";selected:root.event-editor;invoked=>{root.event-editor=!root.event-editor;}}
+                if root.workspace==1: Control { label: root.setup ? "Finish setup" : "Game setup"; selected: root.setup; invoked => { root.setup=!root.setup;root.command("refresh"); } }
+                Rectangle { horizontal-stretch: 1; }
+                Control { label: "Undo"; enabled: root.can-undo; invoked => { root.command("undo"); } }
+                if root.media-import-busy: Control {label:root.media-import-cancelling ? "Cancelling…":"Cancel import";enabled:!root.media-import-cancelling;invoked=>{root.command("cancel-media");}}
+                Control { label: "Redo"; enabled: root.can-redo; invoked => { root.command("redo"); } }
+            }
+        }
+        HorizontalLayout {
+            visible: root.workspace!=2;
+            spacing: 1px;
+            Rectangle {
+                width: root.workspace==1 ? 292px : 224px; background: #22252b;
+                VerticalLayout {
+                    padding: 12px; spacing: 8px;
+                    alignment:root.workspace==3 ? start : stretch;
+                    Label { text: "DESIGNS"; }
+                    for name[index] in root.designs: Control { label: name; selected: index==root.active-design; invoked => { root.choose-design(index); } }
+                    if root.workspace==0: HorizontalLayout { spacing: 6px;
+                        Control { label: "Blank"; invoked => { root.command("blank-design"); } }
+                        Control { label: "Copy design"; invoked => { root.command("copy-design"); } }
+                    }
+                    if root.workspace==0: VerticalLayout {
+                        spacing: 6px;
+                        Label { text: "CREATE"; }
+                        HorizontalLayout {
+                            Control { label: "Select"; selected: root.tool==0; invoked => { root.tool=0; } }
+                            Control { label: "Text"; selected: root.tool==6; invoked => { root.tool=6; } pointer-gesture(phase,x,y)=>{root.palette-drop(6,phase,x,y);} }
+                        }
+                        HorizontalLayout {
+                            Control { label: "Rectangle"; selected: root.tool==1; invoked => { root.tool=1; } pointer-gesture(phase,x,y)=>{root.palette-drop(1,phase,x,y);} }
+                            Control { label: "Ellipse"; selected: root.tool==2; invoked => { root.tool=2; } pointer-gesture(phase,x,y)=>{root.palette-drop(2,phase,x,y);} }
+                        }
+                        HorizontalLayout {
+                            Control { label: "Triangle"; selected: root.tool==3; invoked => { root.tool=3; } pointer-gesture(phase,x,y)=>{root.palette-drop(3,phase,x,y);} }
+                            Control { label: "Diamond"; selected: root.tool==4; invoked => { root.tool=4; } pointer-gesture(phase,x,y)=>{root.palette-drop(4,phase,x,y);} }
+                        }
+                        HorizontalLayout { spacing: 6px;
+                            Control { label: "Line"; selected: root.tool==5; invoked => { root.tool=5; } pointer-gesture(phase,x,y)=>{root.palette-drop(5,phase,x,y);} }
+                            Control { label: "Pan"; selected: root.tool==7; invoked => { root.tool=7; } }
+                        }
+                        CheckBox { text: "Extend selection"; checked <=> root.extend-selection; }
+                        Control { label: "Image / logo…"; enabled: !root.io-busy; invoked => { root.command("import-image"); } }
+                        Control { label: "Video clip…"; enabled: !root.io-busy; invoked => { root.command("import-video"); } }
+                        Control { label: "Local AI layout…"; selected: root.ai-open; invoked => { root.ai-open = true; } }
+                        Label { text: "LAYERS"; }
+                        ScrollView {
+                            VerticalLayout {
+                                spacing: 3px;
+                                for layer in root.layers: Control {
+                                    label: layer.name + (layer.hidden ? "  · Hidden" : "") + (layer.locked ? "  · Locked" : "");
+                                    selected: layer.selected;
+                                    invoked => { root.choose-layer(layer.id); }
+                                }
+                            }
+                        }
+                    }
+                    if root.workspace==1: ScrollView {
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: 12px;
+                            Label { text: "LIVE SCORES"; }
+                            if root.setup: Control { label: "Add team"; invoked => { root.configure("team",0,"add",""); } }
+                            if root.setup: Control { label: "Create scoreboard"; invoked => { root.command("team-board"); } }
+                            for team in root.teams: Rectangle {
+                                height: root.setup ? 320px : 130px; background: #292d34; border-radius: 6px;
+                                Rectangle { x: 0px; y: 0px; width: 3px; height: parent.height; background: team.color; }
+                                VerticalLayout {
+                                    padding: 12px; spacing: 8px;
+                                    if !root.setup: Text { text: team.name; color: #d5dce5; }
+                                    if root.setup: Field { text <=> team.name; accepted => { root.configure("team",team.index,"name",self.text); } }
+                                    Text { text: team.score; color: #f2f5f9; font-size: 30px; }
+                                    ScrollView {
+                                        height: 34px; content-height: 34px;
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            for step in team.steps: Control { min-width: 42px; label: step; invoked => { root.score-step(team.field,step); } }
+                                        }
+                                    }
+                                    if root.setup: VerticalLayout {
+                                        spacing: 6px;
+                                        HorizontalLayout { Label { text: "Label"; } Field { text <=> team.label; accepted => { root.configure("team",team.index,"label",self.text); } } }
+                                        ColorField {label:"Team color";value:team.color;alpha-enabled:false;chosen(value)=>{root.configure("team",team.index,"color",root.color-to-text(value,false));}}
+                                        HorizontalLayout { Label { text: "Steps"; } Field { text <=> team.steps-text; accepted => { root.configure("team",team.index,"steps",self.text); } } }
+                                        Control { label: "Remove team"; invoked => { root.configure("team",team.index,"remove",""); } }
+                                    }
+                                }
+                            }
+                            Label { text: "CLOCKS"; }
+                            if root.setup: Control { label: "Add clock"; invoked => { root.configure("clock",0,"add",""); } }
+                            for clock in root.clocks: Rectangle {
+                                height: root.setup ? 320px : 150px; background: #292d34; border-radius: 6px;
+                                VerticalLayout {
+                                    padding: 12px; spacing: 8px;
+                                    if !root.setup: Label { text: clock.name + (clock.running ? " · Running" : " · Paused"); }
+                                    if root.setup: Field { text <=> clock.name; accepted => { root.configure("clock",clock.index,"name",self.text); } }
+                                    Text { text: clock.time; color: #eef2f7; font-size: 28px; }
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        Control { label: clock.running ? "Pause" : "Start"; invoked => { root.clock-action(clock.index,"toggle"); } }
+                                        Control { label: "Reset"; invoked => { root.clock-action(clock.index,"reset"); } }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        Control { label: "−10s"; invoked => { root.clock-action(clock.index,"-10"); } }
+                                        Control { label: "+10s"; invoked => { root.clock-action(clock.index,"10"); } }
+                                        Control { label: "+60s"; invoked => { root.clock-action(clock.index,"60"); } }
+                                    }
+                                    if root.setup: VerticalLayout {
+                                        spacing: 6px;
+                                        HorizontalLayout { Label { text: "Current"; } Field { enabled: !clock.running; text <=> clock.time; accepted => { root.configure("clock",clock.index,"current",self.text); } } }
+                                        HorizontalLayout { Label { text: "Reset to"; } Field { text <=> clock.reset; accepted => { root.configure("clock",clock.index,"reset",self.text); } } }
+                                        CheckBox { text: "Count down"; checked <=> clock.countdown; toggled => { root.configure("clock",clock.index,"direction",self.checked ? "down":"up"); } }
+                                        Control { label: "Remove clock"; invoked => { root.configure("clock",clock.index,"remove",""); } }
+                                    }
+                                }
+                            }
+                            Label { text: "LIVE TEXT"; }
+                            if root.setup: VerticalLayout {spacing:6px;
+                                Field {text <=> root.new-field-name;placeholder-text:"Field name, e.g. question";accepted=>{root.live-field-command("add",self.text);}}
+                                Control {label:"Add field";invoked=>{root.live-field-command("add",root.new-field-name);}}
+                                Label {text:"Remove clears linked bindings and controls. Undo restores them.";wrap:word-wrap;}
+                            }
+                            for value in root.live-values: Rectangle {
+                                height:root.setup ? 168px:132px;background:#292d34;border-radius:6px;
+                                VerticalLayout {padding:12px;spacing:6px;
+                                    Label {text:value.label;overflow:elide;}
+                                    Field {text <=> value.draft;accepted=>{root.live-value-apply(value.key,self.text);}}
+                                    HorizontalLayout {spacing:6px;
+                                        Control {label:"Apply";invoked=>{root.live-value-apply(value.key,value.draft);}}
+                                        Control {label:"Revert";invoked=>{value.draft=value.value;}}
+                                    }
+                                    Label {text:"Current: "+value.value;overflow:elide;}
+                                    if root.setup: Control {label:"Remove field";invoked=>{root.live-field-command("remove",value.key);}}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                background: #17191e;
+                VerticalLayout {
+                    padding: 16px; spacing: 12px;
+                    HorizontalLayout {
+                        height: 30px;
+                        Text { text: root.workspace==1 ? "PREVIEW · " + root.design-name : root.ai-has-proposal ? "AI PREVIEW · " + root.design-name : root.design-name; color: #d5dce5; }
+                        Label { text: root.canvas-width + " × " + root.canvas-height + " · Alpha"; horizontal-alignment: right; }
+                        CheckBox { text: "Snap"; checked <=> root.snap; }
+                        if root.workspace==0: Control { label: "−"; invoked => { root.zoom=max(0.25,root.zoom/1.25); } }
+                        if root.workspace==0: Control { label: "+"; invoked => { root.zoom=min(4,root.zoom*1.25); } }
+                        if root.workspace==0: Control { label: "Fit"; invoked => { root.zoom=1;root.pan-x=0;root.pan-y=0; } }
+                    }
+                    if root.workspace==1: Rectangle {
+                        height: 230px; background: #101216; border-width: 1px; border-color: #363d48;
+                        VerticalLayout {
+                            padding: 8px; spacing: 6px;
+                            HorizontalLayout {
+                                height: 28px;
+                                Label { text: "PROGRAM · " + root.program-label; }
+                                ComboBox { min-width: 0px; model: root.outputs-names; current-index: root.monitor-output; selected(value) => { root.choose-monitor(self.current-index); } }
+                            }
+                            Rectangle {
+                                background: #303743;
+                                Image { width: parent.width; height: parent.height;source:@image-url("checker.svg");image-fit:fill; }
+                                if root.program-available: Image { width: parent.width; height: parent.height; source: root.program-texture; image-fit: contain; }
+                                if !root.program-available: Label { text: "Start an output to monitor its program"; horizontal-alignment: center; }
+                            }
+                        }
+                    }
+                    stage := Rectangle {
+                        background: #101216;
+                        clip: true;
+                        property <float> scale: min(self.width / 1px / root.canvas-width, self.height / 1px / root.canvas-height);
+                        property <float> view-scale: self.scale*(root.workspace==0 ? root.zoom : 1);
+                        canvas-focus := FocusScope {
+                            width: parent.width; height: parent.height;
+                            key-pressed(event) => { root.shortcut(event.text,event.modifiers.control,event.modifiers.shift) ? accept : reject }
+                        }
+                        pointer := TouchArea {
+                            enabled: root.workspace==0 && !root.ai-busy && !root.ai-has-proposal;
+                            property <bool> shift;
+                            property <bool> alt;
+                            property <bool> panning;
+                            property <float> start-pan-x;
+                            property <float> start-pan-y;
+                            pointer-event(event) => {
+                                if event.button==PointerEventButton.left || event.button==PointerEventButton.middle {
+                                    self.shift=event.modifiers.shift;self.alt=event.modifiers.alt;
+                                    if event.kind==PointerEventKind.down { canvas-focus.focus();self.panning=event.button==PointerEventButton.middle || root.tool==7;self.start-pan-x=root.pan-x;self.start-pan-y=root.pan-y; }
+                                    if !self.panning { root.canvas-pointer(event.kind==PointerEventKind.down ? 0 : 2,(self.mouse-x - artwork.x)/1px/stage.view-scale,(self.mouse-y - artwork.y)/1px/stage.view-scale,self.shift,self.alt); }
+                                }
+                            }
+                            moved => {
+                                if self.pressed {
+                                    if self.panning {root.pan-x=self.start-pan-x+(self.mouse-x - self.pressed-x)/1px;root.pan-y=self.start-pan-y+(self.mouse-y - self.pressed-y)/1px;}
+                                    else {root.canvas-pointer(1,(self.mouse-x - artwork.x)/1px/stage.view-scale,(self.mouse-y - artwork.y)/1px/stage.view-scale,self.shift,self.alt);}
+                                }
+                            }
+                            scroll-event(event) => {
+                                if event.modifiers.control {root.zoom=clamp(root.zoom*(event.delta-y>0 ? 1.1 : 0.9),0.25,4);}
+                                else {root.pan-x+=event.delta-x/1px;root.pan-y+=event.delta-y/1px;}
+                                accept
+                            }
+                        }
+                        artwork := Rectangle {
+                            width: root.canvas-width * stage.view-scale * 1px;
+                            height: root.canvas-height * stage.view-scale * 1px;
+                            x: (parent.width - self.width)/2+(root.workspace==0 ? root.pan-x*1px : 0px); y: (parent.height - self.height)/2+(root.workspace==0 ? root.pan-y*1px : 0px);
+                            background: #303743;
+                            Image { width: parent.width; height: parent.height;source:@image-url("checker.svg");image-fit:fill; }
+                            Image { width: parent.width; height: parent.height; source: root.canvas-texture; image-fit: contain; }
+                            if root.workspace==0 && root.selection-visible && !root.ai-has-proposal: Rectangle {
+                                x: root.selection-x*stage.view-scale*1px; y: root.selection-y*stage.view-scale*1px;
+                                width: root.selection-w*stage.view-scale*1px; height: root.selection-h*stage.view-scale*1px;
+                                transform-rotation: root.selection-rotation*1deg;
+                                border-width: 1px; border-color: #64c9e5;
+                                Handle { angle: root.selection-rotation;x: -4px;y: -4px;gesture(phase,x,y,shift)=>{root.canvas-handle(0,phase,x,y,shift,0,stage.view-scale);} }
+                                Handle { angle: root.selection-rotation;x: parent.width - 4px;y: -4px;gesture(phase,x,y,shift)=>{root.canvas-handle(1,phase,x,y,shift,0,stage.view-scale);} }
+                                Handle { angle: root.selection-rotation;x: parent.width - 4px;y: parent.height - 4px;gesture(phase,x,y,shift)=>{root.canvas-handle(2,phase,x,y,shift,0,stage.view-scale);} }
+                                Handle { angle: root.selection-rotation;x: -4px;y: parent.height - 4px;gesture(phase,x,y,shift)=>{root.canvas-handle(3,phase,x,y,shift,0,stage.view-scale);} }
+                                Handle { angle: root.selection-rotation;x: parent.width/2 - 4px;y: -28px;gesture(phase,x,y,shift)=>{root.canvas-handle(4,phase,x,y,shift,root.selection-h/2+24/stage.view-scale,stage.view-scale);} }
+                            }
+                        }
+                    }
+                    Label { text: root.workspace==0 ? "Draw with a creation tool · Drag layers to move · Use the inspector for precise geometry" : root.workspace==3 ? "Select a layer track, add poses and preview their animation" : "Live values update every design bound to the same field"; }
+                    if root.workspace==3 && !root.event-editor: TimelinePanel {
+                        height:300px;
+                        layers:root.animation-layers;pose <=> root.animation-pose;
+                        time <=> root.animation-time;span <=> root.animation-span;extend <=> root.animation-extend;
+                        playing:root.animation-playing;preview:root.animation-preview;
+                        command(value)=>{root.animation-command(value);}
+                        edit(key,value)=>{root.animation-edit(key,value);}
+                        select(id,index,extend)=>{root.animation-select(id,index,extend);}
+                        move(id,index,delta)=>{root.animation-move(id,index,delta);}
+                        seek(value)=>{root.animation-seek(value);}
+                    }
+                    if root.workspace==3 && root.event-editor: EventsPanel {
+                        height:300px;rules:root.event-rules;current <=> root.event-current;
+                        fields:root.event-fields;clocks:root.event-clocks;outputs:root.outputs-names;designs:root.designs;
+                        command(value)=>{root.event-command(value);}edit(key,value)=>{root.event-edit(key,value);}select(id)=>{root.event-select(id);}
+                    }
+                }
+            }
+            if root.workspace==0 && !root.ai-open: Rectangle {
+                width: 272px; background: #22252b;
+                ScrollView {
+                    VerticalLayout {
+                        padding: 14px; spacing: 8px;
+                        Label { text: "CANVAS"; }
+                        Field { text <=> root.canvas-name-edit; accepted => {root.command("canvas-apply");} }
+                        HorizontalLayout { spacing: 6px;
+                            Field { text <=> root.canvas-width-edit; accepted => {root.command("canvas-apply");} }
+                            Label { text: "×"; }
+                            Field { text <=> root.canvas-height-edit; accepted => {root.command("canvas-apply");} }
+                        }
+                        Label { text: "LAYER INSPECTOR"; }
+                        if !root.selection-visible: Label { text: "Select a layer to edit"; }
+                        if root.selection-visible: VerticalLayout {
+                            spacing: 8px;
+                            Field { text <=> root.layer-name; accepted => { root.edit-property("name",self.text); } }
+                            Label { text: "TRANSFORM"; }
+                            HorizontalLayout { spacing: 6px; Label { text: "X"; } Field { text <=> root.draft-x; accepted => { root.edit-property("x",self.text); } } Label { text: "Y"; } Field { text <=> root.draft-y; accepted => { root.edit-property("y",self.text); } } }
+                            HorizontalLayout { spacing: 6px; Label { text: "W"; } Field { text <=> root.draft-w; accepted => { root.edit-property("w",self.text); } } Label { text: "H"; } Field { text <=> root.draft-h; accepted => { root.edit-property("h",self.text); } } }
+                            HorizontalLayout { spacing: 6px; Label { text: "Rotation"; } Field { text <=> root.draft-rotation; accepted => { root.edit-property("rotation",self.text); } } }
+                            HorizontalLayout { CheckBox { text: "Hidden"; checked <=> root.layer-hidden; toggled => { root.edit-property("hidden",self.checked ? "true":"false"); } } CheckBox { text: "Locked"; checked <=> root.layer-locked; toggled => { root.edit-property("locked",self.checked ? "true":"false"); } } }
+                            HorizontalLayout { spacing: 6px; Label { text: "Opacity"; } Field { text <=> root.draft-opacity; accepted => { root.edit-property("opacity",self.text); } } }
+                            Label { text: "FILL AND STROKE"; }
+                            ColorField {label:root.text-layer ? "Text color" : "Fill color";value:root.fill-color;chosen(value)=>{root.edit-property("fill",root.color-to-text(value,true));}}
+                            HorizontalLayout { spacing: 4px;
+                                Control { label: "White"; invoked=>{root.edit-property("fill","#FFFFFFFF");} }
+                                Control { label: "Blue"; invoked=>{root.edit-property("fill","#176C86FF");} }
+                                Control { label: "Amber"; invoked=>{root.edit-property("fill","#AA651FFF");} }
+                            }
+                            ColorField {label:"Stroke color";value:root.stroke-color;chosen(value)=>{root.edit-property("stroke",root.color-to-text(value,true));}}
+                            HorizontalLayout { Label {text:"Stroke width";} Field { text <=> root.stroke-width-edit;accepted=>{root.edit-property("stroke-width",self.text);} } }
+                            if root.rectangle-layer: HorizontalLayout { Label {text:"Corners";} Field {text <=> root.corners-edit;accepted=>{root.edit-property("corners",self.text);} } }
+                            if root.text-layer: VerticalLayout {
+                            Label { text: "TEXT AND LIVE VALUE"; }
+                            Field { text <=> root.text-content; accepted => { root.edit-property("text",self.text); } }
+                            ComboBox { min-width: 0px; model: root.fields; current-index <=> root.binding-index; selected => { root.edit-property("binding-index",self.current-index); } }
+                            Label { text: "FONT"; }
+                            Field { placeholder-text: "Search installed fonts"; edited => { root.filter-fonts(self.text); } }
+                            ComboBox { min-width: 0px; model: root.fonts; current-index <=> root.font-index; selected(value) => { root.edit-property("font",value); } }
+                            Field { text <=> root.draft-font-size; accepted => { root.edit-property("font-size",self.text); } }
+                            ComboBox { model:["Left","Center","Right"];current-index <=> root.text-align-index;selected(value)=>{root.edit-property("text-align",value);} }
+                            }
+                            HorizontalLayout {spacing:6px;Control{label:"Group";invoked=>{root.command("group");}}Control{label:"Ungroup";invoked=>{root.command("ungroup");}}}
+                            HorizontalLayout {spacing:6px;Control{label:"Forward";invoked=>{root.command("forward");}}Control{label:"Backward";invoked=>{root.command("backward");}}}
+                            HorizontalLayout {spacing:4px;Control{label:"Left";invoked=>{root.command("align-left");}}Control{label:"Top";invoked=>{root.command("align-top");}}Control{label:"Center";invoked=>{root.command("align-center");}}}
+                            HorizontalLayout {
+                                Control { label: "Duplicate"; invoked => { root.command("duplicate"); } }
+                                Control { label: "Delete"; icon: @image-url("../../../design/ui-v2/assets/icons/trash.svg"); invoked => { root.command("delete"); } }
+                            }
+                        }
+                        Rectangle { vertical-stretch: 1; }
+                    }
+                }
+            }
+            if root.workspace==0 && root.ai-open: Rectangle {
+                width: 320px; background: #22252b;
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start; padding: 14px; spacing: 10px;
+                        HorizontalLayout {
+                            Text { text: "LOCAL LAYOUT ASSISTANT"; color: #d5dce5; font-weight: 600; }
+                            Rectangle { horizontal-stretch: 1; }
+                            Control {
+                                label: "Close";
+                                invoked => {
+                                    if root.ai-busy { root.ai-command("cancel"); }
+                                    if root.ai-has-proposal { root.ai-command("discard"); }
+                                    root.ai-open=false;
+                                }
+                            }
+                        }
+                        Label {
+                            text: "Describe the composition you want. Selected layers are arranged; with no selection, every visible unlocked layer is used.";
+                            wrap: word-wrap;
+                        }
+                        Rectangle {
+                            height: 78px; background: #292d34; border-width: 1px; border-color: #3c424c; border-radius: 4px;
+                            TextEdit { x: 7px; y: 5px; width: parent.width - 14px; height: parent.height - 10px; text <=> root.ai-brief; wrap: word-wrap; }
+                        }
+                        Label { text: root.ai-status; wrap: word-wrap; }
+                        if !root.ai-ready: Label {
+                            text: "First setup downloads an Ollama runtime when needed and a 523 MB Qwen model. Prompts and layouts stay on this computer.";
+                            wrap: word-wrap;
+                        }
+                        if !root.ai-ready && !root.ai-busy: Control { label: "Set up local AI"; invoked=>{root.ai-command("setup");} }
+                        if root.ai-ready && !root.ai-busy: Control {
+                            label: root.ai-has-proposal ? "Try another layout" : "Suggest layout";
+                            invoked=>{root.ai-command("suggest");}
+                        }
+                        if root.ai-busy: Control {
+                            label: root.ai-cancelling ? "Cancelling…" : "Cancel";
+                            enabled: !root.ai-cancelling;
+                            invoked=>{root.ai-command("cancel");}
+                        }
+                        if root.ai-has-proposal: Rectangle {
+                            height: 132px; background: #24353a; border-width: 1px; border-color: #4c9bb1; border-radius: 6px;
+                            VerticalLayout {
+                                padding: 12px; spacing: 8px;
+                                Text { text: "Review the proposal on the canvas"; color: #eef5f7; font-weight: 600; }
+                                Label { text: "Apply records one Undo step. Discard leaves the design unchanged."; wrap: word-wrap; }
+                                HorizontalLayout { spacing: 6px;
+                                    Control { label: "Apply layout"; selected: true; invoked=>{root.ai-command("apply");} }
+                                    Control { label: "Discard"; invoked=>{root.ai-command("discard");} }
+                                }
+                            }
+                        }
+                        Label { text: "The model may resize layers but cannot change text, bindings, styles, IDs, or canvas content."; wrap: word-wrap; }
+                        Rectangle { vertical-stretch: 1; }
+                    }
+                }
+            }
+            if root.workspace==1: Rectangle {
+                width: 292px; background: #22252b;
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+                        padding: 14px; spacing: 12px;
+                        Label { text: "OUTPUTS"; }
+                        for output in root.outputs: Rectangle {
+                            height: output.running ? 268px : 202px; background: #292d34; border-radius: 6px;
+                            VerticalLayout {
+                                padding: 10px; spacing: 8px;
+                                Field { text <=> output.name; enabled: !output.running; accepted => { root.configure("output",output.index,"name",self.text); } }
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    ComboBox { min-width: 0px; model: ["Syphon","NDI"]; current-index <=> output.protocol-index; enabled: !output.running; selected(value) => { root.configure("output",output.index,"protocol",value); } }
+                                    ComboBox { min-width: 0px; model: ["24","25","30","50","60"]; current-index <=> output.fps-index; enabled: !output.running; selected(value) => { root.configure("output",output.index,"fps",value); } }
+                                }
+                                ComboBox { min-width: 0px; model: root.designs; current-index <=> output.design; selected(value) => { root.configure("output",output.index,"design",self.current-index); } }
+                                Control { label: output.running ? "Stop output" : "Start output"; invoked => { root.output-action(output.index,"toggle"); } }
+                                if output.running: HorizontalLayout {
+                                    spacing: 6px;
+                                    Control { label: "Take design"; invoked => { root.output-action(output.index,"take"); } }
+                                    Control { label: output.visible ? "Hide" : "Show"; invoked => { root.output-action(output.index,"visibility"); } }
+                                }
+                                if output.running: Control { label: "Play cue"; invoked => { root.output-action(output.index,"cue"); } }
+                                Label { text: output.running ? "Program · " + output.program-name : "Stopped"; }
+                                Label { text: output.status; }
+                            }
+                        }
+                        Control { label: "Add output"; invoked => { root.configure("output",0,"add",""); } }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 28px; background: #22252b;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px; spacing: 8px;
+                Label { text: root.status; horizontal-stretch: 1; }
+                Label { text: "Overlay Studio"; color: #6b7380; }
+            }
+        }
+    }
+    if root.workspace==2: RemotePanel {
+        y: 90px; width: root.width; height: root.height - 118px;
+        controls: root.remote-controls;current <=> root.remote-current;layout-name <=> root.remote-name;
+        ip <=> root.remote-ip;port <=> root.remote-port;addresses:root.remote-addresses;
+        fields:root.remote-fields;clocks:root.remote-clocks;outputs:root.outputs-names;designs:root.designs;cues:root.remote-cues;
+        running:root.remote-running;tablet <=> root.remote-tablet;address:root.remote-address;qr:root.remote-qr;
+        command(value)=>{root.remote-command(value);}edit(key,value)=>{root.remote-edit(key,value);}
+        select(id)=>{root.remote-select(id);}place(id,col,row)=>{root.remote-place(id,col,row);}
+        color-to-text(value)=>{return root.color-to-text(value,false);}
+    }
+    if root.recovery-visible: Rectangle {
+        x: 0px; y: 0px; width: root.width; height: root.height;
+        background: #00000099;
+        TouchArea {}
+        Rectangle {
+            width: 520px; height: 242px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: #22252b;
+            border-width: 1px; border-color: #53b5d3; border-radius: 8px;
+            VerticalLayout {
+                padding: 22px; spacing: 12px;
+                Text { text: "Recover unsaved work?"; color: #eef2f7; font-size: 20px; font-weight: 600; }
+                Text { text: root.recovery-project; color: #64c9e5; font-size: 14px; font-weight: 600; }
+                Label { text: root.recovery-detail; wrap: word-wrap; }
+                Rectangle { vertical-stretch: 1; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Control { label: "Recover"; selected: true; invoked=>{root.recovery-command("recover");} }
+                    Control { label: "Discard"; invoked=>{root.recovery-command("discard");} }
+                    Rectangle { horizontal-stretch: 1; }
+                    Control { label: "Later"; invoked=>{root.recovery-command("later");} }
+                }
+            }
+        }
+    }
+}
