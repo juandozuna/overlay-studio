@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Overlay Studio — Live scoreboards over NDI &amp; Syphon</title>
+<meta name="description" content="Design transparent scoreboards on macOS, run scores and clocks live, control from a phone, and send graphics over NDI or Syphon into ProPresenter.">
+<meta property="og:title" content="Overlay Studio">
+<meta property="og:description" content="Transparent live scoreboards for macOS, sent over NDI or Syphon.">
+<meta property="og:image" content="manual/screenshots/11-slint-designer.png">
+<style>
+:root{--bg:#0b0d12;--panel:#141821;--line:#232937;--text:#e8ebf2;--mute:#9aa3b5;--accent:#4cc2ff;--accent2:#7c5cff}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7fa;--panel:#fff;--line:#e0e4ec;--text:#12151c;--mute:#586074;--accent:#0a7ac9;--accent2:#5b3fe0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+nav b{font-size:18px;letter-spacing:.2px}
+nav a{color:var(--mute);text-decoration:none;margin-left:20px;font-size:15px}
+.hero{text-align:center;padding:56px 0 40px}
+.hero h1{font-size:clamp(34px,6vw,60px);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}
+.hero h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:640px;margin:0 auto 28px;color:var(--mute);font-size:19px}
+.btn{display:inline-block;padding:13px 24px;border-radius:10px;font-weight:600;text-decoration:none;margin:4px}
+.btn.p{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff}
+.btn.s{border:1px solid var(--line);color:var(--text);background:var(--panel)}
+.shot{border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35);background:var(--panel)}
+.shot img{display:block;width:100%;height:auto}
+.hero .shot{margin-top:36px}
+section{padding:64px 0}
+h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.01em;margin:0 0 10px}
+.lead{color:var(--mute);margin:0 0 32px;max-width:640px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
+.card h3{margin:0 0 6px;font-size:18px}
+.card p{margin:0;color:var(--mute);font-size:15px}
+.row{display:grid;grid-template-columns:1fr 1.3fr;gap:36px;align-items:center;margin-bottom:64px}
+.row.rev{grid-template-columns:1.3fr 1fr}.row.rev .txt{order:2}
+.row p{color:var(--mute)}
+.steps{counter-reset:s;list-style:none;padding:0;display:grid;gap:12px}
+.steps li{counter-increment:s;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px 16px 58px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:16px;top:14px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.cta{text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:56px 20px}
+footer{padding:36px 0 48px;color:var(--mute);font-size:14px;text-align:center}
+@media(max-width:760px){.row,.row.rev{grid-template-columns:1fr}.row.rev .txt{order:0}nav a{margin-left:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><b>Overlay Studio</b><div><a href="#features">Features</a><a href="#workflow">Workflow</a><a href="https://github.com/juandozuna/overlay-studio">GitHub</a></div></nav>
+
+<header class="hero">
+<h1>Broadcast-ready scoreboards, <span>live over NDI</span></h1>
+<p>Design transparent scoreboards on macOS, run scores and clocks in real time, control from your phone, and send it all into ProPresenter or any NDI/Syphon receiver.</p>
+<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/tag/v0.1.0">Download for macOS</a>
+<a class="btn s" href="manual/output/Overlay%20Studio%20Instruction%20Manual.pdf">Read the manual</a>
+<div class="shot"><img src="manual/screenshots/11-slint-designer.png" alt="Overlay Studio design workspace with a scoreboard canvas"></div>
+</header>
+
+<section id="features">
+<h2>Everything a live game desk needs</h2>
+<p class="lead">One app from layout to on-air, with a transparent output that composites cleanly over video.</p>
+<div class="grid">
+<div class="card"><h3>Transparent output</h3><p>Checkerboard and editing handles are never transmitted. Empty areas stay alpha for clean compositing.</p></div>
+<div class="card"><h3>NDI &amp; Syphon</h3><p>Run independent outputs and take your design to air with one click.</p></div>
+<div class="card"><h3>Live bindings</h3><p>Bind text and layers to scores, clocks and custom fields. One project drives many layouts.</p></div>
+<div class="card"><h3>Phone &amp; iPad remote</h3><p>Lay out a button grid, scan the QR code on your network, and run the game from anywhere in the venue.</p></div>
+<div class="card"><h3>Animation &amp; events</h3><p>Keyframe layers on a timeline, then trigger cues automatically from score or clock events.</p></div>
+<div class="card"><h3>Safe by default</h3><p>Import images and short video clips, and recover unsaved work after an unexpected quit.</p></div>
+</div>
+</section>
+
+<section id="tour">
+<div class="row"><div class="txt"><h2>Design</h2><p>Build canvases with text, shapes, images and video. Style every layer with a full color picker and bind it to live game values.</p></div>
+<div class="shot"><img loading="lazy" src="manual/screenshots/18-slint-color-picker.png" alt="Layer color picker"></div></div>
+<div class="row rev"><div class="txt"><h2>Go live</h2><p>Operate teams, scoring steps and clocks from the live desk. Start, hide or stop each output independently, and <i>Take design</i> to publish.</p></div>
+<div class="shot"><img loading="lazy" src="manual/screenshots/14-slint-live.png" alt="Live desk and outputs"></div></div>
+<div class="row"><div class="txt"><h2>Control from anywhere</h2><p>Design your own remote layout and pair a phone or iPad in seconds over the local network.</p></div>
+<div class="shot"><img loading="lazy" src="manual/screenshots/16-slint-remote.png" alt="Remote controller layout"></div></div>
+<div class="row rev"><div class="txt"><h2>Animate &amp; automate</h2><p>Motion on a keyframe timeline, with event rules that react when the score changes or the clock hits a mark.</p></div>
+<div class="shot"><img loading="lazy" src="manual/screenshots/19-slint-timeline.png" alt="Animation timeline"></div></div>
+</section>
+
+<section id="workflow">
+<h2>On air with ProPresenter in four steps</h2>
+<p class="lead">The included PDF manual walks through first-show setup in detail.</p>
+<ol class="steps">
+<li>Start an NDI output in <b>Live</b>.</li>
+<li>Click <b>Take design</b> to publish the current canvas.</li>
+<li>In ProPresenter, open <b>Settings → Inputs</b> and add a Video Input using the Overlay Studio NDI source.</li>
+<li>Trigger it from the Video Input playlist.</li>
+</ol>
+</section>
+
+<section>
+<div class="cta"><h2>Get Overlay Studio</h2><p class="lead" style="margin:0 auto 24px">Open the DMG, drag the app into Applications. If macOS blocks first launch, right-click the app → Open.</p>
+<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/tag/v0.1.0">Download v0.1.0 (DMG)</a>
+<a class="btn s" href="https://github.com/juandozuna/overlay-studio">View source</a></div>
+</section>
+<footer>Overlay Studio · Built with Rust &amp; Slint · NDI® is a trademark of Vizrt NDI AB.</footer>
+</div>
+</body>
+</html>
