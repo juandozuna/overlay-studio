@@ -10,6 +10,7 @@ pub struct GameSession {
     pub clocks: Vec<GameClock>,
     wheel_reveal: Option<Instant>,
     wheel_animation: Option<Instant>,
+    fx_animation: Option<Instant>,
 }
 const WHEEL_TAIL: Duration = Duration::from_secs(3);
 impl GameSession {
@@ -18,6 +19,7 @@ impl GameSession {
             clocks: project.clocks.iter().map(|_| GameClock::new()).collect(),
             wheel_reveal: None,
             wheel_animation: None,
+            fx_animation: None,
         }
     }
     pub fn execute(
@@ -33,12 +35,17 @@ impl GameSession {
             return Err(CommandError::WheelBusy);
         }
         let spun = matches!(action, Action::SpinWheel);
+        let scored = matches!(&action, Action::Adjust { step, .. } if *step != 0);
         let mut outcome = game_commands::dispatch(project, &mut self.clocks, action)?;
         if spun {
             let seconds = crate::domain::wheel::WheelConfig::read(&project.values).spin_seconds;
             let now = Instant::now();
             self.wheel_reveal = Some(now + Duration::from_secs_f32(seconds + 0.1));
             self.wheel_animation = Some(now + Duration::from_secs_f32(seconds) + WHEEL_TAIL);
+        }
+        if scored {
+            let seconds = crate::domain::fx::FxConfig::read(&project.values).seconds;
+            self.fx_animation = Some(Instant::now() + Duration::from_secs_f32(seconds + 0.2));
         }
         self.apply_events(project, &mut outcome)?;
         Ok(outcome)
@@ -64,9 +71,10 @@ impl GameSession {
         outcome.preview_requested |= project.values != before;
         Ok(())
     }
-    /// True while a wheel spin, its winner glow or its confetti needs frames.
+    /// True while a wheel spin, its winner glow, its confetti or a score effect needs frames.
     pub fn animation_busy(&self) -> bool {
-        self.wheel_animation.is_some_and(|end| Instant::now() < end)
+        let now = Instant::now();
+        [self.wheel_animation, self.fx_animation].iter().flatten().any(|end| now < *end)
     }
     /// Publishes the winner once the spin has landed; cheap enough to call every frame.
     pub fn reveal(&mut self, project: &mut Project) -> CommandOutcome {
@@ -76,6 +84,7 @@ impl GameSession {
             if crate::application::wheel::reveal_winner(&mut project.values) {
                 outcome.document_changed = true;
                 outcome.preview_requested = true;
+                outcome.sounds.extend(crate::domain::sound::for_key(&project.values, crate::domain::sound::WHEEL_LAND));
             }
         }
         outcome

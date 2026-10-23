@@ -1419,11 +1419,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 last_animation_frame = std::time::Instant::now();
             }
             let revealed = {
-                let Desktop { document, game, .. } = &mut *state;
+                let Desktop { document, game, audio, .. } = &mut *state;
                 let outcome = game.reveal(&mut document.project);
                 document.dirty |= outcome.document_changed;
                 if outcome.preview_requested {
                     document.revision += 1;
+                }
+                if let Err(error) = audio.play_all(&outcome.sounds, &document.project.sounds) {
+                    ui.set_status(error.into());
                 }
                 outcome.preview_requested
             };
