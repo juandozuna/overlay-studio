@@ -2,6 +2,7 @@
 //! (preview and each running output) sees live changes without re-taking a design.
 use std::collections::BTreeMap;
 
+pub const MAX_ENTRIES: usize = 64; // longer lists are cut when read, keeping painting fast
 pub const ENTRIES: &str = "wheel.entries"; // current list, one entry per line
 pub const ORIGINAL: &str = "wheel.original"; // list restored by RestoreWheel
 pub const POINTER: &str = "wheel.pointer"; // arrow | pin | bar
@@ -87,7 +88,7 @@ impl WheelConfig {
         let get = |k: &str| values.get(k).map(|v| v.trim()).unwrap_or("");
         let d = Self::default();
         Self {
-            entries: lines(get_raw(values, ENTRIES)),
+            entries: lines(get_raw(values, ENTRIES)).into_iter().take(MAX_ENTRIES).collect(),
             pointer: match get(POINTER) {
                 "pin" => Pointer::Pin,
                 "bar" => Pointer::Bar,

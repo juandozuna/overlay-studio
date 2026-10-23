@@ -49,16 +49,27 @@ pub fn spin(values: &mut BTreeMap<String, String>) -> Result<(), CommandError> {
     values.insert(keys::SPIN_TURNS.into(), turns.to_string());
     values.insert(keys::SPIN_JITTER.into(), format!("{jitter:.3}"));
     values.insert(keys::WINNER_INDEX.into(), index.to_string());
-    values.insert(keys::WINNER.into(), config.entries[index].clone());
+    values.insert(keys::WINNER.into(), String::new()); // hidden until the wheel lands
     Ok(())
+}
+
+/// Publishes the winner text once the wheel has landed, so bound text and phones do not spoil it.
+pub fn reveal_winner(values: &mut BTreeMap<String, String>) -> bool {
+    let config = WheelConfig::read(values);
+    let Some(entry) = config.winner_index.and_then(|i| config.entries.get(i)) else {
+        return false;
+    };
+    values.insert(keys::WINNER.into(), entry.clone());
+    true
 }
 
 pub fn remove_winner(values: &mut BTreeMap<String, String>) -> Result<(), CommandError> {
     let config = WheelConfig::read(values);
     let mut entries = config.entries;
+    let shown = values.get(keys::WINNER).map(String::as_str).unwrap_or("");
     let index = config
         .winner_index
-        .filter(|i| *i < entries.len())
+        .filter(|i| entries.get(*i).is_some_and(|e| !shown.is_empty() && e == shown))
         .ok_or(CommandError::WheelNoWinner)?;
     entries.remove(index);
     values.insert(keys::ENTRIES.into(), entries.join("\n"));
@@ -121,6 +132,8 @@ mod tests {
             assert_eq!(c.spin_id, expected);
             let i = c.winner_index.unwrap();
             assert!(i < c.entries.len());
+            assert_eq!(v[keys::WINNER], "");
+            assert!(reveal_winner(&mut v));
             assert_eq!(v[keys::WINNER], c.entries[i]);
             assert!((5..=8).contains(&c.spin_turns));
             assert!(c.spin_jitter.abs() <= 0.35);
@@ -138,6 +151,7 @@ mod tests {
         let mut v = seeded();
         spin(&mut v).unwrap();
         let winner = v[keys::WINNER].clone();
+        reveal_winner(&mut v);
         remove_winner(&mut v).unwrap();
         let c = WheelConfig::read(&v);
         assert_eq!(c.entries.len(), 7);
@@ -151,6 +165,7 @@ mod tests {
     fn restore_returns_original_and_clears_winner() {
         let mut v = seeded();
         spin(&mut v).unwrap();
+        reveal_winner(&mut v);
         remove_winner(&mut v).unwrap();
         spin(&mut v).unwrap();
         restore(&mut v).unwrap();
@@ -168,6 +183,7 @@ mod tests {
         let mut v = seeded();
         set_entries(&mut v, "A\nB\nC");
         spin(&mut v).unwrap();
+        reveal_winner(&mut v);
         remove_winner(&mut v).unwrap();
         assert_eq!(WheelConfig::read(&v).entries.len(), 2);
         restore(&mut v).unwrap();

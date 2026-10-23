@@ -32,6 +32,7 @@ pub enum CommandError {
     WheelEmpty,
     WheelNoWinner,
     WheelNoOriginal,
+    WheelBusy,
 }
 
 impl fmt::Display for CommandError {
@@ -44,6 +45,7 @@ impl fmt::Display for CommandError {
             Self::MissingDesign(index) => write!(f, "Design {} does not exist", index + 1),
             Self::WheelEmpty => write!(f, "The wheel has no entries to spin"),
             Self::WheelNoWinner => write!(f, "The wheel has no winner to remove yet"),
+            Self::WheelBusy => write!(f, "The wheel is still spinning"),
             Self::WheelNoOriginal => write!(f, "The wheel has no original list to restore"),
             Self::NonNumericField(field) => write!(
                 f,

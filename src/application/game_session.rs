@@ -1,4 +1,5 @@
 //! Running clocks and cue coordination shared by desktop and remote entry points.
+use std::time::{Duration, Instant};
 use super::game_commands::{self, CommandError, CommandOutcome};
 use crate::{
     domain::controls::Action,
@@ -7,11 +8,13 @@ use crate::{
 
 pub struct GameSession {
     pub clocks: Vec<GameClock>,
+    wheel_reveal: Option<Instant>,
 }
 impl GameSession {
     pub fn new(project: &Project) -> Self {
         Self {
             clocks: project.clocks.iter().map(|_| GameClock::new()).collect(),
+            wheel_reveal: None,
         }
     }
     pub fn execute(
@@ -19,7 +22,19 @@ impl GameSession {
         project: &mut Project,
         action: Action,
     ) -> Result<CommandOutcome, CommandError> {
+        let wheel_action = matches!(
+            action,
+            Action::SpinWheel | Action::RemoveWheelWinner | Action::RestoreWheel
+        );
+        if wheel_action && self.wheel_reveal.is_some() {
+            return Err(CommandError::WheelBusy);
+        }
+        let spun = matches!(action, Action::SpinWheel);
         let mut outcome = game_commands::dispatch(project, &mut self.clocks, action)?;
+        if spun {
+            let seconds = crate::domain::wheel::WheelConfig::read(&project.values).spin_seconds;
+            self.wheel_reveal = Some(Instant::now() + Duration::from_secs_f32(seconds + 0.1));
+        }
         self.apply_events(project, &mut outcome)?;
         Ok(outcome)
     }
@@ -46,6 +61,13 @@ impl GameSession {
     }
     pub fn tick(&mut self, project: &mut Project) -> Result<CommandOutcome, CommandError> {
         let mut outcome = CommandOutcome::default();
+        if self.wheel_reveal.is_some_and(|at| Instant::now() >= at) {
+            self.wheel_reveal = None;
+            if crate::application::wheel::reveal_winner(&mut project.values) {
+                outcome.document_changed = true;
+                outcome.preview_requested = true;
+            }
+        }
         for (index, (runtime, spec)) in self.clocks.iter_mut().zip(&mut project.clocks).enumerate()
         {
             outcome.document_changed |= runtime.running;
@@ -143,5 +165,21 @@ mod tests {
             outcome.outputs,
             vec![game_commands::OutputRequest::ReplayAnimation { route: 0 }]
         );
+    }
+    #[test]
+    fn wheel_winner_is_hidden_until_landing_and_actions_wait() {
+        let mut p = Project::game_night();
+        let mut game = GameSession::new(&p);
+        game.execute(&mut p, Action::SpinWheel).unwrap();
+        assert_eq!(p.values["wheel.winner"], "");
+        assert!(!p.values["wheel.winner_index"].is_empty());
+        for action in [Action::SpinWheel, Action::RemoveWheelWinner, Action::RestoreWheel] {
+            assert_eq!(game.execute(&mut p, action).err(), Some(CommandError::WheelBusy));
+        }
+        game.wheel_reveal = Some(Instant::now() - Duration::from_millis(1));
+        game.tick(&mut p).unwrap();
+        assert!(!p.values["wheel.winner"].is_empty());
+        game.execute(&mut p, Action::RemoveWheelWinner).unwrap();
+        assert_eq!(p.values["wheel.winner"], "");
     }
 }
