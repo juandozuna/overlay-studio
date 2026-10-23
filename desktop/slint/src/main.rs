@@ -38,6 +38,7 @@ struct Desktop {
     animation: animation_panel::Session,
     events: events_panel::Session,
     wheel: wheel_panel::Session,
+    fx: fx_panel::Session,
     ai: ai_panel::Session,
     recovery: recovery::Manager,
     media_pixels:
@@ -152,6 +153,7 @@ impl Desktop {
             animation: animation_panel::Session::default(),
             events: events_panel::Session::default(),
             wheel: wheel_panel::Session::default(),
+            fx: fx_panel::Session::default(),
             ai: ai_panel::Session::default(),
             recovery: recovery::Manager::new(),
             media_pixels: Default::default(),
@@ -211,6 +213,7 @@ fn refresh(ui: &StudioWindow, state: &Desktop) {
     animation_panel::refresh_panel(ui, state);
     events_panel::refresh_panel(ui, state);
     wheel_panel::refresh_panel(ui, state);
+    fx_panel::refresh_panel(ui, state);
     let s = &state.document;
     let d = s.active();
     ui.set_project_name(s.project.name.clone().into());
@@ -449,6 +452,7 @@ fn report(ui: &StudioWindow, result: Result<(), String>) {
 }
 fn refresh_runtime(ui: &StudioWindow, state: &Desktop) {
     wheel_panel::refresh_panel(ui, state);
+    fx_panel::refresh_panel(ui, state);
     live_values::refresh_panel(ui, state);
     ui.set_dirty(state.document.dirty);
     let p = &state.document.project;
@@ -1379,6 +1383,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     animation_panel::connect(&ui, state.clone());
     events_panel::connect(&ui, state.clone());
     wheel_panel::connect(&ui, state.clone());
+    fx_panel::connect(&ui, state.clone());
     live_values::connect(&ui, state.clone());
     let weak = ui.as_weak();
     let shared = state.clone();
