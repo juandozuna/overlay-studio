@@ -202,7 +202,7 @@ fn test(s: &mut Desktop, which: &str) -> Result<(), String> {
 }
 
 fn add_sound(s: &mut Desktop, path: &Path) -> Result<String, String> {
-    let id = s.document.project.sounds.iter().map(|a| a.id).max().unwrap_or(0) + 1;
+    let id = s.document.project.next_id();
     let asset = audio_import::import_sound(path, id)?;
     crate::audio::Engine::validate(&asset.bytes)?;
     let name = asset.name.clone();
@@ -231,7 +231,7 @@ fn preview(s: &mut Desktop, dir: &str) -> Result<(), String> {
     let id = s.document.project.teams.first().ok_or("Add a team first")?.id;
     let prefix = fx::team_prefix(id);
     let values = &mut s.document.project.values;
-    let next = fx::read_state(values, &prefix).0 + 1;
+    let next = fx::read_state(values, &prefix).0.saturating_add(1);
     values.insert(fx::id_key(&prefix), next.to_string());
     values.insert(fx::dir_key(&prefix), if dir == "sub" { "sub" } else { "add" }.into());
     s.document.revision += 1;
@@ -434,5 +434,13 @@ mod tests {
         assert_eq!(apply_style(&mut design, FxStyle::Ring), 1);
         assert_eq!((design.elements[0].fx_style, design.elements[1].fx_style), (FxStyle::Ring, FxStyle::None));
         assert_eq!(design_style(&design), (FxStyle::Ring, 1));
+    }
+    #[test]
+    fn imported_sound_ids_do_not_collide_with_image_ids() {
+        let mut p = overlay_studio::model::Project::fresh();
+        p.assets.push(overlay_studio::model::Asset { id: 5, name: "a".into(), bytes: std::sync::Arc::new(vec![]) });
+        let id = p.next_id();
+        assert!(p.assets.iter().all(|a| a.id != id));
+        assert!(p.sounds.iter().all(|a| a.id != id));
     }
 }

@@ -18,7 +18,7 @@ struct Clip {
 #[derive(Default)]
 pub struct Engine {
     sink: Option<MixerDeviceSink>,
-    failed: bool,
+    failed: Option<std::time::Instant>,
     voices: VecDeque<Player>,
     builtins: BTreeMap<String, Clip>,
     assets: BTreeMap<u64, Clip>,
@@ -127,11 +127,14 @@ impl Engine {
         };
         let (channels, rate) = (NonZero::new(clip.channels.max(1)).unwrap(), NonZero::new(clip.rate.max(1)).unwrap());
         let source = SamplesBuffer::new(channels, rate, clip.samples.clone());
-        if self.sink.is_none() && !self.failed {
+        if self.sink.is_none() && self.failed.is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(5)) {
             match DeviceSinkBuilder::open_default_sink() {
-                Ok(sink) => self.sink = Some(sink),
+                Ok(sink) => {
+                    self.sink = Some(sink);
+                    self.failed = None;
+                }
                 Err(e) => {
-                    self.failed = true;
+                    self.failed = Some(std::time::Instant::now());
                     return Err(format!("No audio output available: {e}"));
                 }
             }
@@ -145,6 +148,7 @@ impl Engine {
             self.voices.pop_front();
         }
         self.voices.push_back(player);
+        self.reported = None;
         Ok(())
     }
 }

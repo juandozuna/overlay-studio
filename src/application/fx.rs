@@ -20,7 +20,7 @@ pub fn score_changed(project: &mut Project, field: &str, step: i64, outcome: &mu
     let dir = if step > 0 { Dir::Add } else { Dir::Sub };
     let prefix = team_prefix(team_id);
     let key = id_key(&prefix);
-    let next = project.values.get(&key).and_then(|v| v.trim().parse::<u64>().ok()).unwrap_or(0) + 1;
+    let next = project.values.get(&key).and_then(|v| v.trim().parse::<u64>().ok()).unwrap_or(0).saturating_add(1);
     project.values.insert(key, next.to_string());
     project.values.insert(dir_key(&prefix), if dir == Dir::Add { "add" } else { "sub" }.into());
     outcome.sounds.extend(sound::for_score(&project.values, team_id, dir));
