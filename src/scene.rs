@@ -1,3 +1,4 @@
+pub mod wheel;
 use crate::model::*;
 use egui::{Color32, FontFamily, FontId, Pos2, Rect, Shape, Stroke, TextureHandle, Vec2};
 use image::AnimationDecoder;
@@ -354,7 +355,7 @@ pub fn paint_scene(
                 _ => {}
             }
         }
-        let color = rgba(e.fill, e.opacity * alpha);
+        let color = rgba(e.resolved_fill(values), e.opacity * alpha);
         let stroke = Stroke::new(e.stroke_width * scale, rgba(e.stroke, e.opacity * alpha));
         let rot = egui::emath::Rot2::from_angle(e.rotation.to_radians());
         let center = rect.center();
@@ -528,6 +529,7 @@ pub fn sample_keyframes(element: &Element, elapsed: f32) -> Element {
         Easing::Linear => t,
         Easing::EaseOut => 1. - (1. - t).powi(3),
         Easing::EaseInOut => t * t * (3. - 2. * t),
+        Easing::EaseOutBack | Easing::Spring => 1. - (1. - t).powi(3), // WN-6 replaces
         Easing::Hold => {
             if t >= 1. {
                 1.

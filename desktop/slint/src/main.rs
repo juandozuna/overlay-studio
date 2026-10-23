@@ -11,6 +11,7 @@ mod recovery;
 mod renderer;
 mod value_labels;
 mod view_models;
+mod wheel_panel;
 use overlay_studio::{
     application::{
         design_templates,

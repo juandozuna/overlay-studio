@@ -154,6 +154,8 @@ pub fn refresh_panel(ui: &StudioWindow, s: &Desktop) {
                 Easing::EaseOut => 1,
                 Easing::EaseInOut => 2,
                 Easing::Hold => 3,
+                Easing::EaseOutBack => 4,
+                Easing::Spring => 5,
             };
         }
     }
@@ -231,6 +233,8 @@ fn edit(ui: &StudioWindow, s: &mut Desktop, key: &str, value: &str) -> Result<()
                 "1" => Easing::EaseOut,
                 "2" => Easing::EaseInOut,
                 "3" => Easing::Hold,
+                "4" => Easing::EaseOutBack,
+                "5" => Easing::Spring,
                 _ => return Err("Choose easing".into()),
             }
         }

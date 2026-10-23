@@ -96,6 +96,8 @@ fn row(c: &Control, s: &Desktop) -> RemoteRow {
         ..Default::default()
     };
     match &c.action {
+        // WN-7 gives the wheel actions their own rows.
+        Action::SpinWheel | Action::RemoveWheelWinner | Action::RestoreWheel => {}
         Action::Adjust { field, step } => {
             r.action = 0;
             r.field = p.values.keys().position(|x| x == field).unwrap_or(0) as i32;

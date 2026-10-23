@@ -37,6 +37,9 @@ pub struct Element {
     pub keyframes: Vec<Keyframe>,
     #[serde(default)]
     pub loop_animation: bool,
+    /// Value key holding `#RRGGBB`; when set and present, replaces the RGB of `fill`.
+    #[serde(default)]
+    pub fill_binding: String,
 }
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug, Default)]
 pub enum TextAlign {
@@ -63,6 +66,10 @@ pub enum Easing {
     EaseOut,
     EaseInOut,
     Hold,
+    /// Overshoots then settles. Implemented by WN-6.
+    EaseOutBack,
+    /// Damped spring settle. Implemented by WN-6.
+    Spring,
 }
 impl Keyframe {
     pub fn capture(element: &Element, time: f32) -> Self {
@@ -88,6 +95,8 @@ pub enum Kind {
     Text,
     Image,
     Video,
+    /// Prize wheel drawn from `domain::wheel` values. Painted by WN-1.
+    Wheel,
 }
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug)]
 pub enum Animation {
@@ -257,6 +266,17 @@ impl Element {
             duration: 0.35,
             keyframes: vec![],
             loop_animation: false,
+            fill_binding: String::new(),
+        }
+    }
+    /// Fill after applying `fill_binding`; alpha always comes from `fill`.
+    pub fn resolved_fill(&self, values: &BTreeMap<String, String>) -> [u8; 4] {
+        let rgb = values
+            .get(&self.fill_binding)
+            .and_then(|v| crate::domain::wheel::parse_hex(v));
+        match rgb {
+            Some(c) if !self.fill_binding.is_empty() => [c[0], c[1], c[2], self.fill[3]],
+            _ => self.fill,
         }
     }
     pub fn content(&self, values: &BTreeMap<String, String>) -> String {

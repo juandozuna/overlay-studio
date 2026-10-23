@@ -112,6 +112,8 @@ pub fn dispatch(
                 .outputs
                 .push(OutputRequest::ReplayAnimation { route });
         }
+        // WN-2 implements the wheel commands.
+        Action::SpinWheel | Action::RemoveWheelWinner | Action::RestoreWheel => {}
         Action::RunCue { id } => {
             let target = project
                 .cue_rules
