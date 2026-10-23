@@ -192,6 +192,7 @@ impl Project {
             designs,
             assets: vec![],
             motions: vec![],
+            sounds: vec![],
             values,
             routes: vec![
                 route(1, "Overlay Studio • Broadcast", Protocol::Syphon),

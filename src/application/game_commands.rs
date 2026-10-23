@@ -19,6 +19,8 @@ pub struct CommandOutcome {
     pub outputs: Vec<OutputRequest>,
     pub preview_requested: bool,
     pub document_changed: bool,
+    /// Sounds the desktop app should play (score changes, wheel); played by the audio engine.
+    pub sounds: Vec<crate::domain::sound::SoundRequest>,
 }
 
 #[derive(Debug, PartialEq)]

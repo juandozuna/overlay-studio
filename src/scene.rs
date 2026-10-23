@@ -1,3 +1,4 @@
+pub mod fx;
 pub mod wheel;
 use crate::model::*;
 use egui::{Color32, FontFamily, FontId, Pos2, Rect, Shape, Stroke, TextureHandle, Vec2};
@@ -121,6 +122,7 @@ pub struct Resources {
     image_data: HashMap<u64, Arc<egui::ColorImage>>,
     motions: HashMap<u64, MotionTexture>,
     pub wheel_clock: wheel::WheelClock,
+    pub fx_clock: fx::FxClock,
 }
 impl Resources {
     pub fn wheel_busy(&self) -> bool {

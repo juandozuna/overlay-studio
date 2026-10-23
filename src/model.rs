@@ -40,6 +40,11 @@ pub struct Element {
     /// Value key holding `#RRGGBB`; when set and present, replaces the RGB of `fill`.
     #[serde(default)]
     pub fill_binding: String,
+    /// Value-key prefix (for example `team.1`) whose `fx_id` restarts this layer's effect.
+    #[serde(default)]
+    pub fx_key: String,
+    #[serde(default)]
+    pub fx_style: crate::domain::fx::FxStyle,
 }
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug, Default)]
 pub enum TextAlign {
@@ -128,6 +133,13 @@ pub struct MotionAsset {
     pub fps: f32,
     pub looped: bool,
 }
+/// An imported sound file (wav, mp3, ogg or flac), embedded so the project is self-contained.
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+pub struct SoundAsset {
+    pub id: u64,
+    pub name: String,
+    pub bytes: Arc<Vec<u8>>,
+}
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug)]
 pub enum Protocol {
     Syphon,
@@ -167,6 +179,8 @@ pub struct Project {
     pub assets: Vec<Asset>,
     #[serde(default)]
     pub motions: Vec<MotionAsset>,
+    #[serde(default)]
+    pub sounds: Vec<SoundAsset>,
     pub values: BTreeMap<String, String>,
     pub routes: Vec<Route>,
     pub clock_seconds: f64,
@@ -267,6 +281,8 @@ impl Element {
             keyframes: vec![],
             loop_animation: false,
             fill_binding: String::new(),
+            fx_key: String::new(),
+            fx_style: crate::domain::fx::FxStyle::None,
         }
     }
     /// Fill after applying `fill_binding`; alpha always comes from `fill`.
@@ -419,6 +435,7 @@ impl Project {
             designs: vec![],
             assets: vec![],
             motions: vec![],
+            sounds: vec![],
             values,
             routes: vec![],
             clock_seconds: 522.,
@@ -472,6 +489,7 @@ impl Project {
             )
             .chain(self.assets.iter().map(|a| a.id))
             .chain(self.motions.iter().map(|a| a.id))
+            .chain(self.sounds.iter().map(|a| a.id))
             .max()
             .unwrap_or(0)
             .saturating_add(1)
@@ -577,6 +595,19 @@ impl Project {
                 if img.width() > 8192 || img.height() > 8192 {
                     return Err("Image exceeds 8192px".into());
                 }
+            }
+        }
+        if self.sounds.len() > 64 {
+            return Err("Maximum 64 imported sounds".into());
+        }
+        for sound in &self.sounds {
+            if sound.id > MAX_ID
+                || !ids.insert(sound.id)
+                || sound.name.trim().is_empty()
+                || sound.bytes.is_empty()
+                || sound.bytes.len() > 16 * 1024 * 1024
+            {
+                return Err(format!("Invalid sound: {}", sound.name));
             }
         }
         for motion in &self.motions {

@@ -1,9 +1,11 @@
 mod ai_panel;
 mod animation_panel;
+mod audio;
 #[cfg(test)]
 mod configuration_tests;
 mod events_panel;
 mod files;
+mod fx_panel;
 mod live_values;
 mod outputs;
 mod remote_panel;
