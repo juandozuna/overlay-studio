@@ -145,7 +145,7 @@ impl CanvasRenderer {
             && self.view_key == scene.view_key
             && scene.elapsed.is_none()
             && !self.animated
-            && !self.resources.wheel_busy()
+            && !self.resources.animating()
         {
             return Ok(false);
         }

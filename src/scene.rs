@@ -128,6 +128,10 @@ impl Resources {
     pub fn wheel_busy(&self) -> bool {
         self.wheel_clock.busy()
     }
+    /// True while a wheel spin or a score effect still needs frames.
+    pub fn animating(&self) -> bool {
+        self.wheel_busy() || self.fx_clock.busy()
+    }
     pub fn install_motion(
         &mut self,
         ctx: &egui::Context,
@@ -361,7 +365,16 @@ pub fn paint_scene(
                 _ => {}
             }
         }
-        let color = rgba(e.resolved_fill(values), e.opacity * alpha);
+        let fx_play = active_fx(e, values, resources);
+        let fx_frame = fx_play.map(|(f, _, _)| f).unwrap_or_default();
+        if fx_frame.offset_x != 0. {
+            rect = rect.translate(Vec2::new(fx_frame.offset_x * scale, 0.));
+        }
+        let mut fill = e.resolved_fill(values);
+        if let Some((f, c, _)) = fx_play.filter(|_| fx_tints(e.kind)) {
+            fill = fx::blend(fill, c, f.tint);
+        }
+        let color = rgba(fill, e.opacity * alpha);
         let stroke = Stroke::new(e.stroke_width * scale, rgba(e.stroke, e.opacity * alpha));
         let rot = egui::emath::Rot2::from_angle(e.rotation.to_radians());
         let center = rect.center();
@@ -384,8 +397,8 @@ pub fn paint_scene(
                 let fit = (rect.width() / galley.size().x.max(1.))
                     .min(rect.height() / galley.size().y.max(1.))
                     .min(1.);
-                if fit < 1. {
-                    font.size *= fit;
+                if fit < 1. || fx_frame.scale != 1. {
+                    font.size *= fit * fx_frame.scale;
                     galley = painter.layout_no_wrap(content, font, color);
                 }
                 let x = match e.text_align {
@@ -506,7 +519,35 @@ pub fn paint_scene(
                 painter.add(Shape::convex_polygon(points, color, stroke));
             }
         }
+        if let Some((f, c, dir)) = fx_play {
+            fx::paint_overlay(painter, rect, e.fx_style, &f, c, dir, e.opacity * alpha, scale);
+        }
     }
+}
+
+fn fx_tints(kind: Kind) -> bool {
+    matches!(kind, Kind::Rectangle | Kind::Ellipse | Kind::Triangle | Kind::Diamond)
+}
+
+/// The current effect frame, colour and direction for an element, or None when it is at rest.
+fn active_fx(
+    e: &Element,
+    values: &BTreeMap<String, String>,
+    resources: &Resources,
+) -> Option<(fx::FxFrame, [u8; 3], crate::domain::fx::Dir)> {
+    use crate::domain::fx::{read_state, Dir, FxConfig, FxStyle};
+    if e.fx_key.is_empty() || e.fx_style == FxStyle::None {
+        return None;
+    }
+    let cfg = FxConfig::read(values);
+    let (id, dir) = read_state(values, &e.fx_key);
+    let el = resources.fx_clock.observe(&e.fx_key, id, cfg.seconds, std::time::Instant::now())?;
+    let t = el / cfg.seconds;
+    if t >= 1. {
+        return None;
+    }
+    let color = if dir == Dir::Sub { cfg.sub_color } else { cfg.add_color };
+    Some((fx::sample(e.fx_style, e.kind == Kind::Text, dir, t), color, dir))
 }
 
 pub fn sample_keyframes(element: &Element, elapsed: f32) -> Element {
