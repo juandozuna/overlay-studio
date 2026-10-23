@@ -14,24 +14,7 @@ const COLORS: [[u8; 3]; 5] = [
     [0x8a, 0x3f, 0xd1],
     [0xc9, 0x9a, 0x12],
 ];
-const WHEEL_ENTRIES: &str = "Trivia round\nCharades\nKaraoke\nPictionary\nSpeed quiz\nMystery box\nBonus points\nLightning round";
 const LIGHT: [u8; 4] = [245, 248, 255, 255];
-
-/// Same keys as `application::wheel::seed_defaults`; swap at merge.
-fn seed_wheel_values(values: &mut BTreeMap<String, String>) {
-    for (key, value) in [
-        (wheel::ENTRIES, WHEEL_ENTRIES),
-        (wheel::ORIGINAL, WHEEL_ENTRIES),
-        (wheel::POINTER, "arrow"),
-        (wheel::SLICE, "solid"),
-        (wheel::PALETTE, "vivid"),
-        (wheel::CONFETTI, "1"),
-        (wheel::SPIN_SECONDS, "5.5"),
-        (wheel::SPIN_ID, "0"),
-    ] {
-        values.insert(key.into(), value.into());
-    }
-}
 
 struct Builder {
     next: u64,
@@ -185,7 +168,9 @@ impl Project {
             values.insert(team.score_key.clone(), "0".into());
             values.insert(team_color_key(team.id), hex(team.color));
         }
-        seed_wheel_values(&mut values);
+        crate::application::wheel::seed_defaults(&mut values);
+        values.insert(wheel::WINNER.into(), String::new());
+        values.insert(wheel::WINNER_INDEX.into(), String::new());
         let builders = [
             ("1 Full grid", full_grid as fn(&[Team], u64) -> Builder),
             ("2 Top bar", top_bar),

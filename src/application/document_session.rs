@@ -116,7 +116,8 @@ impl Default for DocumentSession {
 }
 
 impl DocumentSession {
-    pub fn new(project: Project) -> Self {
+    pub fn new(mut project: Project) -> Self {
+        crate::application::game_setup::sync_team_colors(&mut project);
         Self {
             project,
             design: 0,
