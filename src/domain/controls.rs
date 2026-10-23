@@ -15,6 +15,9 @@ pub enum Action {
     Cue { route: usize },
     RunCue { id: u64 },
     SetValue { field: String, value: String },
+    SpinWheel,
+    RemoveWheelWinner,
+    RestoreWheel,
 }
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Control {

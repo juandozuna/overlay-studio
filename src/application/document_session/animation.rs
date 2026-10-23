@@ -110,7 +110,7 @@ mod tests {
     use super::*;
     #[test]
     fn bulk_timing_is_atomic_and_one_undo_without_reverting_scores() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let e = s.active().elements[0].clone();
         let mut a = Keyframe::capture(&e, 0.);
         let b = Keyframe::capture(&e, 2.);
@@ -132,7 +132,7 @@ mod tests {
     }
     #[test]
     fn bad_pose_cannot_enter_saved_animation() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let e = s.active().elements[0].clone();
         let f = Keyframe::capture(&e, 1.);
         s.insert_keyframes(vec![(e.id, f.clone())]).unwrap();

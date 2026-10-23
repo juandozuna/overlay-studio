@@ -157,7 +157,7 @@ mod tests {
         );
         let imported =
             crate::infrastructure::media_import::PreparedMedia::read(&path, true).unwrap();
-        let mut document = crate::application::document_session::DocumentSession::default();
+        let mut document = crate::application::document_session::DocumentSession::new(crate::model::Project::fresh());
         let (id, _pixels) = document.import_media(imported, 0).unwrap();
         assert_eq!(document.selected_layer().unwrap().motion, Some(id));
         assert!(document.selected_layer().unwrap().duration <= 10.);

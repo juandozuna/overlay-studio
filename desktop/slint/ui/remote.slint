@@ -109,7 +109,7 @@ export component RemotePanel inherits Rectangle {
                     ColorField {label:"Button color";value:root.current.tint;alpha-enabled:false;chosen(value)=>{root.edit("color",root.color-to-text(value));}}
                     CheckBox {text:"Confirm before running";checked <=> root.current.confirm;toggled=>{root.edit("confirm",self.checked ? "true":"false");}}
                     Caption {text:"Action";}
-                    ComboBox {model:["Adjust value","Start or pause clock","Reset clock","Adjust clock time","Show or hide output","Take design","Play animation","Set value","Run named cue"];current-index <=> root.current.action;selected=>{root.edit("action",self.current-index);}}
+                    ComboBox {model:["Adjust value","Start or pause clock","Reset clock","Adjust clock time","Show or hide output","Take design","Play animation","Set value","Run named cue","Spin wheel","Remove wheel winner","Restore wheel list"];current-index <=> root.current.action;selected=>{root.edit("action",self.current-index);}}
                     if root.current.action==0 || root.current.action==7: ComboBox {model:root.fields;current-index <=> root.current.field;selected=>{root.edit("field",self.current-index);}}
                     if root.current.action==0 || root.current.action==3: Field {text <=> root.current.amount;placeholder-text:"Signed amount";accepted=>{root.edit("amount",self.text);}}
                     if root.current.action==7: Field {text <=> root.current.value;placeholder-text:"Value to set";accepted=>{root.edit("value",self.text);}}

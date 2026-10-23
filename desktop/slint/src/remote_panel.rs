@@ -96,6 +96,9 @@ fn row(c: &Control, s: &Desktop) -> RemoteRow {
         ..Default::default()
     };
     match &c.action {
+        Action::SpinWheel => r.action = 9,
+        Action::RemoveWheelWinner => r.action = 10,
+        Action::RestoreWheel => r.action = 11,
         Action::Adjust { field, step } => {
             r.action = 0;
             r.field = p.values.keys().position(|x| x == field).unwrap_or(0) as i32;
@@ -229,6 +232,9 @@ fn action(r: &RemoteRow, s: &Desktop) -> Result<Action, String> {
                 .ok_or("Create an event cue first")?
                 .id,
         },
+        9 => Action::SpinWheel,
+        10 => Action::RemoveWheelWinner,
+        11 => Action::RestoreWheel,
         _ => return Err("Select an action".into()),
     })
 }
@@ -264,7 +270,7 @@ fn edit(ui: &StudioWindow, s: &mut Desktop, key: &str, value: &str) -> Result<()
                 }
             }
             c.action = action(&r, s)?;
-            if key == "action" && r.action == 2 {
+            if key == "action" && matches!(r.action, 2 | 10) {
                 c.confirm = true;
             }
         }

@@ -11,6 +11,7 @@ mod recovery;
 mod renderer;
 mod value_labels;
 mod view_models;
+mod wheel_panel;
 use overlay_studio::{
     application::{
         design_templates,
@@ -34,6 +35,7 @@ struct Desktop {
     remote: remote_panel::Session,
     animation: animation_panel::Session,
     events: events_panel::Session,
+    wheel: wheel_panel::Session,
     ai: ai_panel::Session,
     recovery: recovery::Manager,
     media_pixels:
@@ -130,7 +132,13 @@ impl Desktop {
         Ok(())
     }
     fn new() -> Self {
-        let document = DocumentSession::default();
+        Self::from_document(DocumentSession::default())
+    }
+    #[cfg(test)]
+    fn two_team_demo() -> Self {
+        Self::from_document(DocumentSession::new(overlay_studio::model::Project::fresh()))
+    }
+    fn from_document(document: DocumentSession) -> Self {
         let game = GameSession::new(&document.project);
         let outputs = outputs::OutputManager::new(document.project.routes.len());
         Self {
@@ -140,6 +148,7 @@ impl Desktop {
             remote: remote_panel::Session::default(),
             animation: animation_panel::Session::default(),
             events: events_panel::Session::default(),
+            wheel: wheel_panel::Session::default(),
             ai: ai_panel::Session::default(),
             recovery: recovery::Manager::new(),
             media_pixels: Default::default(),
@@ -197,6 +206,7 @@ fn refresh(ui: &StudioWindow, state: &Desktop) {
     remote_panel::refresh_panel(ui, state);
     animation_panel::refresh_panel(ui, state);
     events_panel::refresh_panel(ui, state);
+    wheel_panel::refresh_panel(ui, state);
     let s = &state.document;
     let d = s.active();
     ui.set_project_name(s.project.name.clone().into());
@@ -434,6 +444,7 @@ fn report(ui: &StudioWindow, result: Result<(), String>) {
     }
 }
 fn refresh_runtime(ui: &StudioWindow, state: &Desktop) {
+    wheel_panel::refresh_panel(ui, state);
     live_values::refresh_panel(ui, state);
     ui.set_dirty(state.document.dirty);
     let p = &state.document.project;
@@ -1363,6 +1374,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     remote_panel::connect(&ui, state.clone());
     animation_panel::connect(&ui, state.clone());
     events_panel::connect(&ui, state.clone());
+    wheel_panel::connect(&ui, state.clone());
     live_values::connect(&ui, state.clone());
     let weak = ui.as_weak();
     let shared = state.clone();

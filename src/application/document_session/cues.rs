@@ -52,7 +52,7 @@ mod tests {
     use crate::model::{CueEvent, CueTarget};
     #[test]
     fn removing_a_linked_rule_is_one_undo_without_reverting_live_values() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let rule = CueRule {
             id: 41,
             name: "Winner".into(),

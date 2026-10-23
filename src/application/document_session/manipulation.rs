@@ -186,7 +186,7 @@ mod tests {
     use crate::model::Kind;
     #[test]
     fn rotated_resize_preserves_opposite_world_corner_and_undo() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         s.project.designs[0].elements.clear();
         let id = s.add(Kind::Rectangle, 100., 100., 100., 40.).unwrap();
         s.apply(
@@ -211,7 +211,7 @@ mod tests {
     }
     #[test]
     fn copying_multiple_groups_does_not_merge_them() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         s.project.designs[0].elements.clear();
         let a = s.add(Kind::Rectangle, 0., 0., 50., 50.).unwrap();
         let b = s.add(Kind::Rectangle, 70., 0., 50., 50.).unwrap();

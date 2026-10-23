@@ -1,3 +1,4 @@
+use super::wheel;
 use crate::{
     domain::controls::Action,
     model::{CueEvent, CueTarget, GameClock, Project, clock_text},
@@ -28,6 +29,10 @@ pub enum CommandError {
     MissingOutput(usize),
     MissingDesign(usize),
     NonNumericField(String),
+    WheelEmpty,
+    WheelNoWinner,
+    WheelNoOriginal,
+    WheelBusy,
 }
 
 impl fmt::Display for CommandError {
@@ -38,6 +43,10 @@ impl fmt::Display for CommandError {
             Self::MissingCue(id) => write!(f, "Cue {id} does not exist"),
             Self::MissingOutput(index) => write!(f, "Output {} does not exist", index + 1),
             Self::MissingDesign(index) => write!(f, "Design {} does not exist", index + 1),
+            Self::WheelEmpty => write!(f, "The wheel has no entries to spin"),
+            Self::WheelNoWinner => write!(f, "The wheel has no winner to remove yet"),
+            Self::WheelBusy => write!(f, "The wheel is still spinning"),
+            Self::WheelNoOriginal => write!(f, "The wheel has no original list to restore"),
             Self::NonNumericField(field) => write!(
                 f,
                 "Value '{field}' must contain an integer before it can be adjusted"
@@ -111,6 +120,21 @@ pub fn dispatch(
             outcome
                 .outputs
                 .push(OutputRequest::ReplayAnimation { route });
+        }
+        Action::SpinWheel => {
+            wheel::spin(&mut project.values)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::RemoveWheelWinner => {
+            wheel::remove_winner(&mut project.values)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::RestoreWheel => {
+            wheel::restore(&mut project.values)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
         }
         Action::RunCue { id } => {
             let target = project

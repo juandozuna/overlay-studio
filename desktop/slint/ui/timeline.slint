@@ -90,7 +90,7 @@ export component TimelinePanel inherits Rectangle {
                         HorizontalLayout{Caption{text:"Time";}Field{text <=> root.pose.time;accepted=>{root.edit("time",self.text);}}Caption{text:"Opacity";}Field{text <=> root.pose.opacity;accepted=>{root.edit("opacity",self.text);}}}
                         HorizontalLayout{Caption{text:"X";}Field{text <=> root.pose.x;accepted=>{root.edit("x",self.text);}}Caption{text:"Y";}Field{text <=> root.pose.y;accepted=>{root.edit("y",self.text);}}}
                         HorizontalLayout{Caption{text:"W";}Field{text <=> root.pose.w;accepted=>{root.edit("w",self.text);}}Caption{text:"H";}Field{text <=> root.pose.h;accepted=>{root.edit("h",self.text);}}}
-                        HorizontalLayout{Caption{text:"Rotation";}Field{text <=> root.pose.rotation;accepted=>{root.edit("rotation",self.text);}}ComboBox{min-width:0px;model:["Linear","Ease out","Ease in out","Hold"];current-index <=> root.pose.easing;selected=>{root.edit("easing",self.current-index);}}}
+                        HorizontalLayout{Caption{text:"Rotation";}Field{text <=> root.pose.rotation;accepted=>{root.edit("rotation",self.text);}}ComboBox{min-width:0px;model:["Linear","Ease out","Ease in out","Hold","Ease out back","Spring"];current-index <=> root.pose.easing;selected=>{root.edit("easing",self.current-index);}}}
                     }
                 }
             }}

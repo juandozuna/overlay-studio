@@ -1,6 +1,9 @@
 //! Validated configuration edits. Runtime clocks retain their identity when lists change.
 use super::game_session::GameSession;
-use crate::model::{ClockSpec, Project, Protocol, Route, clock_text};
+use crate::{
+    domain::wheel::{hex, team_color_key},
+    model::{ClockSpec, Project, Protocol, Route, clock_text},
+};
 use std::{collections::BTreeMap, time::Instant};
 
 /// Preserve runtime identity after document history changes clock metadata.
@@ -25,6 +28,23 @@ pub fn reconcile_clocks(game: &mut GameSession, before: &[ClockSpec], after: &[C
             runtime
         })
         .collect();
+}
+
+/// Keep `team.<id>.color` equal to each team's colour and drop keys of deleted teams.
+pub fn sync_team_colors(project: &mut Project) {
+    let live: Vec<_> = project.teams.iter().map(|t| team_color_key(t.id)).collect();
+    project.values.retain(|key, _| {
+        let derived = key
+            .strip_prefix("team.")
+            .and_then(|k| k.strip_suffix(".color"))
+            .is_some_and(|id| id.parse::<u64>().is_ok());
+        !derived || live.contains(key)
+    });
+    for team in &project.teams {
+        project
+            .values
+            .insert(team_color_key(team.id), hex(team.color));
+    }
 }
 
 pub fn parse_time(text: &str) -> Result<f64, String> {
@@ -231,6 +251,7 @@ pub fn apply(
         candidate.clock_seconds = primary.seconds;
         candidate.countdown = primary.countdown;
     }
+    sync_team_colors(&mut candidate);
     candidate.sync_stable_references()?;
     candidate.validate_metadata()?;
     let old_ids: Vec<_> = project.clocks.iter().map(|c| c.id).collect();
@@ -283,5 +304,31 @@ mod tests {
         apply(&mut p, &mut g, "clock", 1, "current", "02:30").unwrap();
         assert_eq!(p.clocks[1].seconds, 150.);
         assert!(g.clocks[0].running);
+    }
+    #[test]
+    fn team_color_key_follows_add_recolor_and_remove() {
+        let mut p = Project::fresh();
+        let mut g = GameSession::new(&p);
+        p.values.remove(&team_color_key(p.teams[0].id));
+        apply(&mut p, &mut g, "team", 0, "add", "").unwrap();
+        for t in &p.teams {
+            assert_eq!(p.values[&team_color_key(t.id)], hex(t.color));
+        }
+        apply(&mut p, &mut g, "team", 0, "color", "#112233").unwrap();
+        assert_eq!(p.values[&team_color_key(p.teams[0].id)], "#112233");
+        let id = p.teams[2].id;
+        apply(&mut p, &mut g, "team", 2, "remove", "").unwrap();
+        assert!(!p.values.contains_key(&team_color_key(id)));
+    }
+    #[test]
+    fn sync_creates_missing_keys_for_older_projects() {
+        let mut p = Project::fresh();
+        p.values.retain(|k, _| !k.ends_with(".color"));
+        p.values.insert("team.99.color".into(), "#000000".into());
+        sync_team_colors(&mut p);
+        assert!(!p.values.contains_key("team.99.color"));
+        for t in &p.teams {
+            assert_eq!(p.values[&team_color_key(t.id)], hex(t.color));
+        }
     }
 }

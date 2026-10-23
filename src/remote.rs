@@ -390,6 +390,40 @@ mod tests {
         assert_eq!(old.button, 1);
     }
     #[test]
+    fn wheel_actions_roundtrip_validate_and_snapshot_winner() {
+        let mut p = Project::fresh();
+        let actions = [Action::SpinWheel, Action::RemoveWheelWinner, Action::RestoreWheel];
+        for (i, action) in actions.iter().enumerate() {
+            p.controller.controls.push(Control {
+                id: 900 + i as u64,
+                label: format!("Wheel {i}"),
+                col: 0,
+                row: 40 + 2 * i as u8,
+                width: 6,
+                height: 2,
+                color: [19, 95, 123],
+                confirm: matches!(action, Action::RemoveWheelWinner),
+                action: action.clone(),
+            });
+        }
+        p.validate().unwrap();
+        p.values.insert("wheel.winner".into(), "Ada".into());
+        let value = serde_json::to_value(Snapshot::from_project(&p, &[false], vec![])).unwrap();
+        assert_eq!(value["values"]["wheel.winner"], "Ada");
+        let mut layout = value["layout"].clone();
+        for control in layout["controls"].as_array_mut().unwrap() {
+            let id: u64 = control["id"].as_str().unwrap().parse().unwrap();
+            control["id"] = id.into();
+        }
+        let back: ControllerLayout = serde_json::from_value(layout).unwrap();
+        let wheel: Vec<_> = back.controls.iter().filter(|c| c.id >= 900).collect();
+        assert_eq!(wheel.len(), 3);
+        for (c, a) in wheel.iter().zip(&actions) {
+            assert_eq!(&c.action, a);
+        }
+        assert!(wheel[1].confirm);
+    }
+    #[test]
     fn qr_has_quiet_zone() {
         let image = qr_image("http://127.0.0.1:9876/#token=example").unwrap();
         assert_eq!(image.pixels[0], egui::Color32::WHITE);
