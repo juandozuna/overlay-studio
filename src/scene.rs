@@ -529,7 +529,12 @@ pub fn sample_keyframes(element: &Element, elapsed: f32) -> Element {
         Easing::Linear => t,
         Easing::EaseOut => 1. - (1. - t).powi(3),
         Easing::EaseInOut => t * t * (3. - 2. * t),
-        Easing::EaseOutBack | Easing::Spring => 1. - (1. - t).powi(3), // WN-6 replaces
+        Easing::EaseOutBack if t > 0. && t < 1. => 1. + 2.70158 * (t - 1.).powi(3) + 1.70158 * (t - 1.).powi(2),
+        Easing::Spring if t > 0. && t < 1. => {
+            let tail = (-6f32).exp() * 10f32.cos();
+            1. - (-6. * t).exp() * (10. * t).cos() + t * tail
+        }
+        Easing::EaseOutBack | Easing::Spring => t,
         Easing::Hold => {
             if t >= 1. {
                 1.
@@ -572,6 +577,29 @@ mod tests {
         assert_eq!(sample_keyframes(&element, 1.9).x, 0.);
         element.loop_animation = false;
         assert_eq!(sample_keyframes(&element, 2.).x, 200.);
+    }
+    #[test]
+    fn back_and_spring_easing_curves() {
+        let mut e = Element::new(1, Kind::Rectangle);
+        e.keyframes = vec![Keyframe::capture(&e, 0.), {
+            let mut k = Keyframe::capture(&e, 1.);
+            k.x = 100.;
+            k
+        }];
+        for easing in [Easing::EaseOutBack, Easing::Spring] {
+            e.keyframes[0].easing = easing;
+            assert_eq!(sample_keyframes(&e, 0.).x, 0.);
+            assert_eq!(sample_keyframes(&e, 1.).x, 100.);
+            let peak = (1..100)
+                .map(|i| sample_keyframes(&e, i as f32 / 100.).x)
+                .fold(0., f32::max);
+            assert!(peak > 100., "{easing:?} should overshoot");
+        }
+        e.keyframes[0].easing = Easing::EaseOutBack;
+        let peak = (1..100)
+            .map(|i| sample_keyframes(&e, i as f32 / 100.).x)
+            .fold(0., f32::max);
+        assert!((peak - 110.).abs() < 1.5);
     }
     #[test]
     fn rotation_hit_test() {
