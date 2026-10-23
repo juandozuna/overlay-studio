@@ -48,6 +48,7 @@ struct Desktop {
     handle_origin: Option<(f32, f32, f32, f32, f32)>,
     palette_origin: Option<(f32, f32)>,
     fonts: Vec<String>,
+    audio: audio::Engine,
 }
 impl Desktop {
     fn guard_removed_fields(&self, keys: &[String]) -> Result<(), String> {
@@ -160,6 +161,7 @@ impl Desktop {
             handle_origin: None,
             palette_origin: None,
             fonts: FontBook::new().faces.keys().cloned().collect(),
+            audio: audio::Engine::default(),
         }
     }
     fn execute(&mut self, action: Action) -> Result<(), String> {
@@ -174,7 +176,7 @@ impl Desktop {
         for request in outcome.outputs {
             self.outputs.apply(&mut self.document.project, request)?;
         }
-        Ok(())
+        self.audio.play_all(&outcome.sounds, &self.document.project.sounds)
     }
 
     fn install_project(
