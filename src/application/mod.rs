@@ -8,3 +8,4 @@ pub mod style_values;
 pub mod game_night;
 pub mod motion_presets;
 pub mod wheel;
+pub mod fx;

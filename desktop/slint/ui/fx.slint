@@ -1,0 +1,73 @@
+import {Button,ComboBox,LineEdit,Slider} from "std-widgets.slint";
+export struct FxTeam {id:string,label:string,add:int,sub:int}
+export struct FxDesign {index:int,name:string,style:int,layers:int}
+export struct FxView {add-color:string,sub-color:string,add-swatch:color,sub-swatch:color,seconds:string,volume:float,
+    global-sounds:[string],team-sounds:[string],imported:[string],styles:[string],teams:[FxTeam],designs:[FxDesign],
+    sound-add:int,sound-sub:int,wheel-spin:int,wheel-land:int,wheel-remove:int,has-team:bool}
+component Caption inherits Text {color:#a0a8b5;font-size:11px;min-width:0px;vertical-stretch:0;wrap:word-wrap;}
+component Field inherits LineEdit {min-width:0px;preferred-width:80px;horizontal-stretch:1;}
+component SoundRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <[string]> model;
+    in-out property <int> index;
+    callback picked(int);
+    callback test();
+    height:30px;spacing:6px;
+    Caption {text:root.label;width:84px;vertical-alignment:center;}
+    ComboBox {min-width:0px;model:root.model;current-index <=> root.index;selected=>{root.picked(self.current-index);}}
+    Button {text:"Test";width:52px;clicked=>{root.test();}}
+}
+export component FxPanel inherits Rectangle {
+    in-out property <FxView> view;
+    callback command(string,string);
+    callback edit(string,string);
+    height:inner.preferred-height;background:#292d34;border-radius:6px;
+    inner := VerticalLayout {padding:12px;spacing:8px;
+        Caption {text:"EFFECT COLORS AND LENGTH";}
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Add";width:84px;vertical-alignment:center;}
+            Rectangle {width:30px;border-radius:4px;background:root.view.add-swatch;border-width:1px;border-color:#56616e;}
+            Field {text <=> root.view.add-color;placeholder-text:"#RRGGBB";accepted=>{root.edit("add_color",self.text);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Subtract";width:84px;vertical-alignment:center;}
+            Rectangle {width:30px;border-radius:4px;background:root.view.sub-swatch;border-width:1px;border-color:#56616e;}
+            Field {text <=> root.view.sub-color;placeholder-text:"#RRGGBB";accepted=>{root.edit("sub_color",self.text);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Length (s)";width:84px;vertical-alignment:center;}
+            Field {text <=> root.view.seconds;placeholder-text:"0.3 to 4";accepted=>{root.edit("seconds",self.text);}}
+        }
+        Caption {text:"SOUNDS";}
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Volume";width:84px;vertical-alignment:center;}
+            Slider {minimum:0;maximum:1;value <=> root.view.volume;released(v)=>{root.edit("volume",v);}}
+        }
+        SoundRow {label:"Point added";model:root.view.global-sounds;index <=> root.view.sound-add;picked(i)=>{root.edit("sound_add",i);}test()=>{root.command("test","add");}}
+        SoundRow {label:"Point removed";model:root.view.global-sounds;index <=> root.view.sound-sub;picked(i)=>{root.edit("sound_sub",i);}test()=>{root.command("test","sub");}}
+        SoundRow {label:"Wheel spin";model:root.view.global-sounds;index <=> root.view.wheel-spin;picked(i)=>{root.edit("wheel_spin",i);}test()=>{root.command("test","spin");}}
+        SoundRow {label:"Wheel lands";model:root.view.global-sounds;index <=> root.view.wheel-land;picked(i)=>{root.edit("wheel_land",i);}test()=>{root.command("test","land");}}
+        SoundRow {label:"Wheel remove";model:root.view.global-sounds;index <=> root.view.wheel-remove;picked(i)=>{root.edit("wheel_remove",i);}test()=>{root.command("test","remove");}}
+        if root.view.teams.length>0: Caption {text:"PER-TEAM SOUNDS (override the global choice)";}
+        for team in root.view.teams: VerticalLayout {spacing:4px;
+            SoundRow {label:team.label+" +";model:root.view.team-sounds;index:team.add;picked(i)=>{root.edit("team_add."+team.id,i);}test()=>{root.command("test_team_add",team.id);}}
+            SoundRow {label:team.label+" −";model:root.view.team-sounds;index:team.sub;picked(i)=>{root.edit("team_sub."+team.id,i);}test()=>{root.command("test_team_sub",team.id);}}
+        }
+        Button {height:30px;text:"Import sound...";clicked=>{root.command("import","");}}
+        for name[i] in root.view.imported: HorizontalLayout {height:28px;spacing:6px;
+            Caption {text:name;vertical-alignment:center;}
+            Button {text:"Remove";width:70px;clicked=>{root.command("remove",i);}}
+        }
+        Caption {text:"EFFECT STYLE PER LAYOUT";}
+        for design in root.view.designs: VerticalLayout {spacing:4px;
+            Caption {text:design.name+" · "+design.layers+" team layers";}
+            HorizontalLayout {height:30px;spacing:6px;
+                ComboBox {min-width:0px;enabled:design.layers>0;model:root.view.styles;current-index:design.style;selected=>{root.edit("style."+design.index,self.current-index);}}
+            }
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Button {text:"Preview add";enabled:root.view.has-team;clicked=>{root.command("preview","add");}}
+            Button {text:"Preview subtract";enabled:root.view.has-team;clicked=>{root.command("preview","sub");}}
+        }
+    }
+}

@@ -1,5 +1,7 @@
 //! Five-team Game Night project and layouts (WN-4).
 use crate::domain::controls::{Action, Control, ControllerLayout};
+use crate::domain::fx::{self, FxStyle};
+use crate::domain::sound;
 use crate::domain::wheel::{self, hex, team_color_key};
 use crate::model::{
     Animation, ClockSpec, Design, Element, Kind, Project, Protocol, Route, Team, TextAlign,
@@ -17,6 +19,7 @@ const COLORS: [[u8; 3]; 5] = [
 const LIGHT: [u8; 4] = [245, 248, 255, 255];
 
 struct Builder {
+    style: FxStyle,
     next: u64,
     elements: Vec<Element>,
 }
@@ -31,6 +34,7 @@ impl Builder {
         self.elements.last_mut().expect("just pushed")
     }
     fn panel(&mut self, team: &Team, rect: [f32; 4], alpha: u8, radius: f32, suffix: &str) {
+        let style = self.style;
         let e = self.push(
             format!("{} {suffix}", team.label),
             Kind::Rectangle,
@@ -39,12 +43,21 @@ impl Builder {
         );
         e.fill_binding = team_color_key(team.id);
         e.radius = radius;
+        e.fx_key = fx::team_prefix(team.id);
+        e.fx_style = style;
     }
     fn text(&mut self, name: String, binding: &str, rect: [f32; 4], size: f32, align: TextAlign) -> &mut Element {
         let e = self.push(name, Kind::Text, rect, LIGHT);
         e.binding = binding.into();
         e.font_size = size;
         e.text_align = align;
+        e
+    }
+    fn team_text(&mut self, team: &Team, name: String, binding: &str, rect: [f32; 4], size: f32, align: TextAlign) -> &mut Element {
+        let (style, key) = (self.style, fx::team_prefix(team.id));
+        let e = self.text(name, binding, rect, size, align);
+        e.fx_key = key;
+        e.fx_style = style;
         e
     }
     fn title_and_clock(&mut self) {
@@ -54,9 +67,9 @@ impl Builder {
     fn chip(&mut self, team: &Team, [x, y, w, h]: [f32; 4], name_size: f32, score_size: f32) {
         self.panel(team, [x, y, w, h], 230, 16., "panel");
         let pad = h * 0.15;
-        let name = self.text(format!("{} name", team.label), &team.name_key, [x + pad, y, w * 0.55 - pad, h], name_size, TextAlign::Left);
+        let name = self.team_text(team, format!("{} name", team.label), &team.name_key, [x + pad, y, w * 0.55 - pad, h], name_size, TextAlign::Left);
         name.animation = Animation::Slide;
-        let score = self.text(format!("{} score", team.label), &team.score_key, [x + w * 0.55, y, w * 0.45 - pad, h], score_size, TextAlign::Right);
+        let score = self.team_text(team, format!("{} score", team.label), &team.score_key, [x + w * 0.55, y, w * 0.45 - pad, h], score_size, TextAlign::Right);
         score.animation = Animation::Pop;
     }
     fn finish(self, id: u64, name: &str) -> Design {
@@ -65,27 +78,27 @@ impl Builder {
 }
 
 fn full_grid(teams: &[Team], first: u64) -> Builder {
-    let mut b = Builder { next: first, elements: vec![] };
+    let mut b = Builder { style: FxStyle::Flash, next: first, elements: vec![] };
     for (i, team) in teams.iter().enumerate() {
         let x = 40. + i as f32 * 368.;
         b.panel(team, [x, 170., 352., 700.], 235, 24., "panel");
-        let name = b.text(format!("{} name", team.label), &team.name_key, [x + 16., 200., 320., 110.], 52., TextAlign::Center);
+        let name = b.team_text(team, format!("{} name", team.label), &team.name_key, [x + 16., 200., 320., 110.], 52., TextAlign::Center);
         name.animation = Animation::Slide;
-        let score = b.text(format!("{} score", team.label), &team.score_key, [x + 16., 380., 320., 360.], 220., TextAlign::Center);
+        let score = b.team_text(team, format!("{} score", team.label), &team.score_key, [x + 16., 380., 320., 360.], 220., TextAlign::Center);
         score.animation = Animation::Pop;
     }
     b.title_and_clock();
     b
 }
 fn top_bar(teams: &[Team], first: u64) -> Builder {
-    let mut b = Builder { next: first, elements: vec![] };
+    let mut b = Builder { style: FxStyle::Sweep, next: first, elements: vec![] };
     for (i, team) in teams.iter().enumerate() {
         b.chip(team, [24. + i as f32 * 374.4, 24., 362., 96.], 34., 56.);
     }
     b
 }
 fn bottom_strip(teams: &[Team], first: u64) -> Builder {
-    let mut b = Builder { next: first, elements: vec![] };
+    let mut b = Builder { style: FxStyle::Wipe, next: first, elements: vec![] };
     for (i, team) in teams.iter().enumerate() {
         let x = 40. + i as f32 * 368.;
         b.chip(team, [x, 900., 352., 150.], 40., 72.);
@@ -94,17 +107,17 @@ fn bottom_strip(teams: &[Team], first: u64) -> Builder {
     b
 }
 fn side_stack(teams: &[Team], first: u64) -> Builder {
-    let mut b = Builder { next: first, elements: vec![] };
+    let mut b = Builder { style: FxStyle::Shake, next: first, elements: vec![] };
     for (i, team) in teams.iter().enumerate() {
         let y = 120. + i as f32 * 164.;
         b.panel(team, [24., y, 360., 150.], 235, 18., "panel");
-        b.text(format!("{} name", team.label), &team.name_key, [44., y + 8., 320., 50.], 36., TextAlign::Left).animation = Animation::Slide;
-        b.text(format!("{} score", team.label), &team.score_key, [44., y + 58., 320., 84.], 80., TextAlign::Right).animation = Animation::Pop;
+        b.team_text(team, format!("{} name", team.label), &team.name_key, [44., y + 8., 320., 50.], 36., TextAlign::Left).animation = Animation::Slide;
+        b.team_text(team, format!("{} score", team.label), &team.score_key, [44., y + 58., 320., 84.], 80., TextAlign::Right).animation = Animation::Pop;
     }
     b
 }
 fn wheel_stage(teams: &[Team], first: u64) -> Builder {
-    let mut b = Builder { next: first, elements: vec![] };
+    let mut b = Builder { style: FxStyle::Burst, next: first, elements: vec![] };
     b.push("Wheel".into(), Kind::Wheel, [580., 170., 760., 760.], [255; 4]).animation = Animation::Pop;
     b.text("Wheel winner".into(), wheel::WINNER, [480., 30., 960., 110.], 72., TextAlign::Center);
     for (i, team) in teams.iter().enumerate() {
@@ -168,6 +181,20 @@ impl Project {
             values.insert(team.score_key.clone(), "0".into());
             values.insert(team_color_key(team.id), hex(team.color));
         }
+        values.extend(
+            [
+                (fx::ADD_COLOR, "#22C55E"),
+                (fx::SUB_COLOR, "#000000"),
+                (fx::SECONDS, "1.2"),
+                (sound::VOLUME, "0.6"),
+                (sound::ADD, "builtin:ding"),
+                (sound::SUB, "builtin:buzz"),
+                (sound::WHEEL_SPIN, ""),
+                (sound::WHEEL_LAND, ""),
+                (sound::WHEEL_REMOVE, ""),
+            ]
+            .map(|(k, v)| (k.to_string(), v.to_string())),
+        );
         crate::application::wheel::seed_defaults(&mut values);
         values.insert(wheel::WINNER.into(), String::new());
         values.insert(wheel::WINNER_INDEX.into(), String::new());
@@ -192,6 +219,7 @@ impl Project {
             designs,
             assets: vec![],
             motions: vec![],
+            sounds: vec![],
             values,
             routes: vec![
                 route(1, "Overlay Studio • Broadcast", Protocol::Syphon),
@@ -250,6 +278,35 @@ mod tests {
                 assert_eq!(panel.fill_binding, team_color_key(team.id));
                 assert!(p.values.contains_key(&panel.fill_binding));
             }
+        }
+    }
+    #[test]
+    fn team_layers_carry_their_layout_effect_and_others_none() {
+        let p = Project::game_night();
+        let styles = [FxStyle::Flash, FxStyle::Sweep, FxStyle::Wipe, FxStyle::Shake, FxStyle::Burst];
+        for (d, style) in p.designs.iter().zip(styles) {
+            for e in &d.elements {
+                let team = p.teams.iter().find(|t| e.name.starts_with(&format!("{} ", t.label)));
+                match team {
+                    Some(t) => {
+                        assert_eq!(e.fx_key, fx::team_prefix(t.id), "{} / {}", d.name, e.name);
+                        assert_eq!(e.fx_style, style, "{} / {}", d.name, e.name);
+                    }
+                    None => assert!((e.fx_key.as_str(), e.fx_style) == ("", FxStyle::None), "{} / {}", d.name, e.name),
+                }
+            }
+            assert!(d.elements.iter().any(|e| !e.fx_key.is_empty()), "{} has no team layers", d.name);
+        }
+    }
+    #[test]
+    fn seeded_fx_and_sound_values_parse() {
+        let v = Project::game_night().values;
+        assert_eq!(fx::FxConfig::read(&v), fx::FxConfig { add_color: [0x22, 0xC5, 0x5E], sub_color: [0, 0, 0], seconds: 1.2 });
+        assert_eq!(sound::SoundRef::parse(&v[sound::ADD]), Some(sound::SoundRef::Builtin("ding".into())));
+        assert_eq!(sound::SoundRef::parse(&v[sound::SUB]), Some(sound::SoundRef::Builtin("buzz".into())));
+        assert_eq!(v[sound::VOLUME], "0.6");
+        for k in [sound::WHEEL_SPIN, sound::WHEEL_LAND, sound::WHEEL_REMOVE] {
+            assert_eq!(v[k], "");
         }
     }
     #[test]

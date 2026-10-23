@@ -1,9 +1,11 @@
 mod ai_panel;
 mod animation_panel;
+mod audio;
 #[cfg(test)]
 mod configuration_tests;
 mod events_panel;
 mod files;
+mod fx_panel;
 mod live_values;
 mod outputs;
 mod remote_panel;
@@ -36,6 +38,7 @@ struct Desktop {
     animation: animation_panel::Session,
     events: events_panel::Session,
     wheel: wheel_panel::Session,
+    fx: fx_panel::Session,
     ai: ai_panel::Session,
     recovery: recovery::Manager,
     media_pixels:
@@ -46,6 +49,7 @@ struct Desktop {
     handle_origin: Option<(f32, f32, f32, f32, f32)>,
     palette_origin: Option<(f32, f32)>,
     fonts: Vec<String>,
+    audio: audio::Engine,
 }
 impl Desktop {
     fn guard_removed_fields(&self, keys: &[String]) -> Result<(), String> {
@@ -149,6 +153,7 @@ impl Desktop {
             animation: animation_panel::Session::default(),
             events: events_panel::Session::default(),
             wheel: wheel_panel::Session::default(),
+            fx: fx_panel::Session::default(),
             ai: ai_panel::Session::default(),
             recovery: recovery::Manager::new(),
             media_pixels: Default::default(),
@@ -158,6 +163,7 @@ impl Desktop {
             handle_origin: None,
             palette_origin: None,
             fonts: FontBook::new().faces.keys().cloned().collect(),
+            audio: audio::Engine::default(),
         }
     }
     fn execute(&mut self, action: Action) -> Result<(), String> {
@@ -172,7 +178,7 @@ impl Desktop {
         for request in outcome.outputs {
             self.outputs.apply(&mut self.document.project, request)?;
         }
-        Ok(())
+        self.audio.play_all(&outcome.sounds, &self.document.project.sounds)
     }
 
     fn install_project(
@@ -207,6 +213,7 @@ fn refresh(ui: &StudioWindow, state: &Desktop) {
     animation_panel::refresh_panel(ui, state);
     events_panel::refresh_panel(ui, state);
     wheel_panel::refresh_panel(ui, state);
+    fx_panel::refresh_panel(ui, state);
     let s = &state.document;
     let d = s.active();
     ui.set_project_name(s.project.name.clone().into());
@@ -445,6 +452,7 @@ fn report(ui: &StudioWindow, result: Result<(), String>) {
 }
 fn refresh_runtime(ui: &StudioWindow, state: &Desktop) {
     wheel_panel::refresh_panel(ui, state);
+    fx_panel::refresh_panel(ui, state);
     live_values::refresh_panel(ui, state);
     ui.set_dirty(state.document.dirty);
     let p = &state.document.project;
@@ -1375,12 +1383,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     animation_panel::connect(&ui, state.clone());
     events_panel::connect(&ui, state.clone());
     wheel_panel::connect(&ui, state.clone());
+    fx_panel::connect(&ui, state.clone());
     live_values::connect(&ui, state.clone());
     let weak = ui.as_weak();
     let shared = state.clone();
     let mut last_refresh = std::time::Instant::now();
     let mut last_monitor_frame = std::time::Instant::now();
     let mut last_animation_frame = std::time::Instant::now();
+    let mut last_wheel_frame = std::time::Instant::now();
     timer.start(
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(8),
@@ -1412,6 +1422,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ui.window().request_redraw();
                 }
                 last_animation_frame = std::time::Instant::now();
+            }
+            let revealed = {
+                let Desktop { document, game, audio, .. } = &mut *state;
+                let outcome = game.reveal(&mut document.project);
+                document.dirty |= outcome.document_changed;
+                if outcome.preview_requested {
+                    document.revision += 1;
+                }
+                if let Err(error) = audio.play_all(&outcome.sounds, &document.project.sounds) {
+                    ui.set_status(error.into());
+                }
+                outcome.preview_requested
+            };
+            if revealed {
+                wheel_panel::refresh_panel(&ui, &state);
+                ui.window().request_redraw();
+            }
+            if state.game.animation_busy()
+                && last_wheel_frame.elapsed() >= std::time::Duration::from_millis(16)
+            {
+                ui.window().request_redraw();
+                last_wheel_frame = std::time::Instant::now();
             }
             let active = state.game.clocks.iter().any(|c| c.running)
                 || state.outputs.senders.iter().any(Option::is_some)
