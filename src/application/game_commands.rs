@@ -1,6 +1,6 @@
-use super::wheel;
+use super::{fx, wheel};
 use crate::{
-    domain::controls::Action,
+    domain::{controls::Action, sound},
     model::{CueEvent, CueTarget, GameClock, Project, clock_text},
 };
 use std::{fmt, time::Instant};
@@ -75,6 +75,7 @@ pub fn dispatch(
             project.adjust_score(&field, step);
             outcome.document_changed = step != 0;
             outcome.preview_requested = true;
+            fx::score_changed(project, &field, step, &mut outcome);
             if step > 0 {
                 outcome.events.push(CueEvent::ScoreAdded { field });
             } else if step < 0 {
@@ -125,11 +126,13 @@ pub fn dispatch(
         }
         Action::SpinWheel => {
             wheel::spin(&mut project.values)?;
+            outcome.sounds.extend(sound::for_key(&project.values, sound::WHEEL_SPIN));
             outcome.document_changed = true;
             outcome.preview_requested = true;
         }
         Action::RemoveWheelWinner => {
             wheel::remove_winner(&mut project.values)?;
+            outcome.sounds.extend(sound::for_key(&project.values, sound::WHEEL_REMOVE));
             outcome.document_changed = true;
             outcome.preview_requested = true;
         }
