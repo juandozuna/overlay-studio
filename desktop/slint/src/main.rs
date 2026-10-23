@@ -1381,6 +1381,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_refresh = std::time::Instant::now();
     let mut last_monitor_frame = std::time::Instant::now();
     let mut last_animation_frame = std::time::Instant::now();
+    let mut last_wheel_frame = std::time::Instant::now();
     timer.start(
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(8),
@@ -1412,6 +1413,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ui.window().request_redraw();
                 }
                 last_animation_frame = std::time::Instant::now();
+            }
+            let revealed = {
+                let Desktop { document, game, .. } = &mut *state;
+                let outcome = game.reveal(&mut document.project);
+                document.dirty |= outcome.document_changed;
+                if outcome.preview_requested {
+                    document.revision += 1;
+                }
+                outcome.preview_requested
+            };
+            if revealed {
+                wheel_panel::refresh_panel(&ui, &state);
+                ui.window().request_redraw();
+            }
+            if state.game.animation_busy()
+                && last_wheel_frame.elapsed() >= std::time::Duration::from_millis(16)
+            {
+                ui.window().request_redraw();
+                last_wheel_frame = std::time::Instant::now();
             }
             let active = state.game.clocks.iter().any(|c| c.running)
                 || state.outputs.senders.iter().any(Option::is_some)
