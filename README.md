@@ -51,6 +51,10 @@ Import images and short video clips; recover unsaved work after an unexpected qu
 
 ![Recovery prompt](docs/manual/screenshots/20-slint-recovery.jpg)
 
+## Game Night show
+
+The app opens with a five-team **Game Night** project: five 1920×1080 layouts (full grid, top bar, bottom strip, side stack, wheel stage) that you switch with **Take** or the phone buttons, and a prize wheel on the Live workspace. Spin, remove the winner, or restore the original list from the app or the remote controller. Pointer, slice style, palette, custom colors and confetti are options; team colors recolor every layout. Wheel state is saved in the project values (`wheel.*`).
+
 ## Run from source
 
 Slint desktop app:
