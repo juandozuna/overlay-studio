@@ -1,0 +1,44 @@
+import {Button,CheckBox,ComboBox,LineEdit,TextEdit} from "std-widgets.slint";
+export struct WheelView {pointer:int,slice:int,palette:int,confetti:bool,spin-seconds:string,colors:string,winner:string,count:int,spinning:bool,can-remove:bool}
+component Caption inherits Text {color:#a0a8b5;font-size:11px;min-width:0px;vertical-stretch:0;wrap:word-wrap;}
+component Field inherits LineEdit {min-width:0px;preferred-width:80px;horizontal-stretch:1;}
+export component WheelPanel inherits Rectangle {
+    in-out property <WheelView> view;
+    in-out property <string> entries;
+    callback command(string);
+    callback edit(string,string);
+    height:520px;background:#292d34;border-radius:6px;
+    VerticalLayout {padding:12px;spacing:8px;
+        Caption {text:"ENTRIES · "+root.view.count+" (one per line)";}
+        Rectangle {height:130px;background:#1d2026;border-radius:4px;
+            TextEdit {x:4px;y:4px;width:parent.width - 8px;height:parent.height - 8px;text <=> root.entries;wrap:word-wrap;edited(text)=>{root.edit("entries",text);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Button {text:"Spin";enabled:root.view.count>0 && !root.view.spinning;clicked=>{root.command("spin");}}
+            Button {text:"Remove winner";enabled:root.view.can-remove;clicked=>{root.command("remove");}}
+        }
+        Button {height:30px;text:"Restore original list";clicked=>{root.command("restore");}}
+        Text {text:root.view.spinning ? "Spinning..." : root.view.winner=="" ? "No winner yet" : "Winner · "+root.view.winner;color:#f2f5f9;font-size:15px;wrap:word-wrap;min-height:36px;vertical-stretch:0;}
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Pointer";width:60px;vertical-alignment:center;}
+            ComboBox {min-width:0px;model:["Arrow","Pin","Bar"];current-index <=> root.view.pointer;selected=>{root.edit("pointer",self.current-index);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Slices";width:60px;vertical-alignment:center;}
+            ComboBox {min-width:0px;model:["Solid","Gradient","Two-tone"];current-index <=> root.view.slice;selected=>{root.edit("slice",self.current-index);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Palette";width:60px;vertical-alignment:center;}
+            ComboBox {min-width:0px;model:["Vivid","Neon","Gold","Pastel"];current-index <=> root.view.palette;selected=>{root.edit("palette",self.current-index);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Spin (s)";width:60px;vertical-alignment:center;}
+            Field {text <=> root.view.spin-seconds;accepted=>{root.edit("spin_seconds",self.text);}}
+        }
+        HorizontalLayout {height:30px;spacing:6px;
+            Caption {text:"Colors";width:60px;vertical-alignment:center;}
+            Field {text <=> root.view.colors;placeholder-text:"#RRGGBB, #RRGGBB (empty = palette)";accepted=>{root.edit("colors",self.text);}}
+        }
+        CheckBox {text:"Confetti";checked <=> root.view.confetti;toggled=>{root.edit("confetti",self.checked ? "1":"0");}}
+    }
+}
