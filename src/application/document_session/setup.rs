@@ -376,4 +376,17 @@ mod tests {
         assert!(s.configure(&mut g, "team", 0, "steps", "0").is_err());
         assert_eq!(s.revision, revision);
     }
+    #[test]
+    fn undo_recolor_restores_color_value() {
+        let mut s = DocumentSession::default();
+        let mut g = GameSession::new(&s.project);
+        let key = crate::domain::wheel::team_color_key(s.project.teams[0].id);
+        let old = s.project.values[&key].clone();
+        s.configure(&mut g, "team", 0, "color", "#010203").unwrap();
+        assert_eq!(s.project.values[&key], "#010203");
+        s.undo().unwrap();
+        assert_eq!(s.project.values[&key], old);
+        s.redo();
+        assert_eq!(s.project.values[&key], "#010203");
+    }
 }
