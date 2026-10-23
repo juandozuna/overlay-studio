@@ -120,8 +120,12 @@ pub struct Resources {
     pub images: HashMap<u64, TextureHandle>,
     image_data: HashMap<u64, Arc<egui::ColorImage>>,
     motions: HashMap<u64, MotionTexture>,
+    pub wheel_clock: wheel::WheelClock,
 }
 impl Resources {
+    pub fn wheel_busy(&self) -> bool {
+        self.wheel_clock.busy()
+    }
     pub fn install_motion(
         &mut self,
         ctx: &egui::Context,
@@ -428,6 +432,14 @@ pub fn paint_scene(
                     painter.add(Shape::mesh(mesh));
                 }
             }
+            Kind::Wheel => wheel::paint(
+                painter,
+                rect,
+                e.rotation.to_radians(),
+                e.opacity * alpha,
+                values,
+                &resources.wheel_clock,
+            ),
             Kind::Line => {
                 painter.line_segment(
                     [rotate(rect.left_center()), rotate(rect.right_center())],
