@@ -4,6 +4,7 @@ import { ColorField } from "color-picker.slint";
 import { TimelinePanel, AnimationRow, FramePose } from "timeline.slint";
 import { EventsPanel, CueRow } from "events.slint";
 import { WheelPanel, WheelView } from "wheel.slint";
+import { FxPanel, FxView } from "fx.slint";
 
 export struct LayerRow { id: string, name: string, selected: bool, hidden: bool, locked: bool }
 export struct TeamRow { index: int, label: string, name: string, score: string, field: string, color: color, color-text: string, steps: [string], steps-text: string }
@@ -106,6 +107,9 @@ export component StudioWindow inherits Window {
     in-out property <string> wheel-entries;
     callback wheel-command(string);
     callback wheel-edit(string,string);
+    in-out property <FxView> fx-view;
+    callback fx-command(string,string);
+    callback fx-edit(string,string);
     in-out property <bool> animation-extend;
     callback animation-command(string);
     callback animation-edit(string,string);
@@ -350,6 +354,8 @@ export component StudioWindow inherits Window {
                             }
                             Label { text: "WHEEL"; }
                             WheelPanel {view <=> root.wheel-view;entries <=> root.wheel-entries;command(c)=>{root.wheel-command(c);}edit(k,v)=>{root.wheel-edit(k,v);}}
+                            Label { text: "EFFECTS AND SOUND"; }
+                            FxPanel {view <=> root.fx-view;command(c,v)=>{root.fx-command(c,v);}edit(k,v)=>{root.fx-edit(k,v);}}
                             Label { text: "LIVE TEXT"; }
                             if root.setup: VerticalLayout {spacing:6px;
                                 Field {text <=> root.new-field-name;placeholder-text:"Field name, e.g. question";accepted=>{root.live-field-command("add",self.text);}}
