@@ -111,7 +111,7 @@ pub struct DocumentSession {
 
 impl Default for DocumentSession {
     fn default() -> Self {
-        Self::new(Project::fresh())
+        Self::new(Project::game_night())
     }
 }
 
