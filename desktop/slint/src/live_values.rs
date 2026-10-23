@@ -91,7 +91,7 @@ mod tests {
     use super::*;
     #[test]
     fn custom_text_updates_without_stopping_clocks_or_changing_scores() {
-        let mut s = Desktop::new();
+        let mut s = Desktop::two_team_demo();
         s.execute(Action::ClockToggleAt { clock: 0 }).unwrap();
         apply(&mut s, "event", "Church games").unwrap();
         assert_eq!(s.document.project.values["event"], "Church games");

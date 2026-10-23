@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn editor_rules_trigger_only_when_enabled_and_manual_run_always_works() {
-        let mut s = Desktop::new();
+        let mut s = Desktop::two_team_demo();
         command(&mut s, "add").unwrap();
         edit(&mut s, "target", "2").unwrap();
         edit(&mut s, "value", "GOAL").unwrap();

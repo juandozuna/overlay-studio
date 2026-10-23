@@ -258,7 +258,7 @@ mod tests {
             domain::controls::Action,
             model::{CueEvent, CueTarget},
         };
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         s.configure(&mut g, "value", 0, "add", "Question").unwrap();
         s.project.values.insert("Question".into(), "BONUS".into());
@@ -304,7 +304,7 @@ mod tests {
     }
     #[test]
     fn new_field_history_keeps_operator_changes_and_protects_owned_keys() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         s.configure(&mut g, "value", 0, "add", "Custom text")
             .unwrap();
@@ -326,7 +326,7 @@ mod tests {
     }
     #[test]
     fn stream_history_preserves_later_live_take_selection() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         s.configure(&mut g, "output", 0, "name", "Main scoreboard")
             .unwrap();
@@ -342,7 +342,7 @@ mod tests {
     }
     #[test]
     fn undo_setup_preserves_live_scores_and_elapsed_clock() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         s.configure(&mut g, "clock", 0, "reset", "12:00").unwrap();
         s.project.clocks[0].seconds = 410.;
@@ -357,7 +357,7 @@ mod tests {
     }
     #[test]
     fn removed_team_bindings_return_and_invalid_setup_has_no_history() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         let bindings = s.project.designs.clone();
         let controller = s.project.controller.clone();
@@ -378,7 +378,7 @@ mod tests {
     }
     #[test]
     fn undo_recolor_restores_color_value() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let mut g = GameSession::new(&s.project);
         let key = crate::domain::wheel::team_color_key(s.project.teams[0].id);
         let old = s.project.values[&key].clone();

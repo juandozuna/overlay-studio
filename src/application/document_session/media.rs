@@ -69,7 +69,7 @@ mod tests {
             .save(&path)
             .unwrap();
         let prepared = PreparedMedia::read(&path, false).unwrap();
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let (id, pixels) = s.import_media(prepared, 0).unwrap();
         let Pixels::Image(image) = pixels else {
             panic!("Expected image");

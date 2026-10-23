@@ -759,7 +759,7 @@ mod tests {
     use super::*;
     #[test]
     fn reviewed_layout_proposal_is_atomic_and_rejects_stale_or_content_changes() {
-        let mut session = DocumentSession::default();
+        let mut session = DocumentSession::new(crate::model::Project::fresh());
         let source = session.active().clone();
         let mut proposal = source.clone();
         proposal.elements[0].x += 40.;
@@ -791,7 +791,7 @@ mod tests {
     }
     #[test]
     fn snapped_group_translation_preserves_relative_positions() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         s.project.designs[0].elements.clear();
         let a = s.add(Kind::Rectangle, 10.3, 20.4, 20., 20.).unwrap();
         let b = s.add(Kind::Rectangle, 42.7, 67.2, 20., 20.).unwrap();
@@ -806,7 +806,7 @@ mod tests {
     }
     #[test]
     fn catalog_undo_repairs_refs_without_rolling_back_live_scores() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let count = s.project.designs.len();
         s.blank_design().unwrap();
         s.project.routes[0].design = count;
@@ -822,7 +822,7 @@ mod tests {
     }
     #[test]
     fn imported_asset_remapping_does_not_rewrite_already_mapped_ids() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let collision = s.project.next_id();
         let mut cursor = std::io::Cursor::new(vec![]);
         image::DynamicImage::new_rgba8(2, 2)
@@ -867,7 +867,7 @@ mod tests {
     }
     #[test]
     fn replacing_project_invalidates_preview_cache_and_history() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         s.add(Kind::Rectangle, 10., 10., 40., 40.).unwrap();
         let revision = s.revision;
         let generation = s.generation;
@@ -879,7 +879,7 @@ mod tests {
     }
     #[test]
     fn drag_is_one_undo_and_preserves_media() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let id = s.active().elements[0].id;
         let before = s.active().clone();
         s.select(Some(id), false);
@@ -896,7 +896,7 @@ mod tests {
     }
     #[test]
     fn invalid_edit_rolls_back_and_cannot_enter_history() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let e = s.active().elements[0].clone();
         assert!(
             s.apply(
@@ -917,7 +917,7 @@ mod tests {
     }
     #[test]
     fn reversed_stacking_hidden_locked_and_rotated_hit_testing() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         s.project.designs[0].elements.clear();
         let a = s.add(Kind::Rectangle, 10., 10., 100., 40.).unwrap();
         let b = s.add(Kind::Rectangle, 10., 10., 100., 40.).unwrap();
@@ -943,7 +943,7 @@ mod tests {
     }
     #[test]
     fn controller_history_preserves_live_scores_and_rejects_invalid_targets() {
-        let mut s = DocumentSession::default();
+        let mut s = DocumentSession::new(crate::model::Project::fresh());
         let before = s.project.controller.clone();
         let mut after = before.clone();
         after.controls[0].label = "Score five".into();

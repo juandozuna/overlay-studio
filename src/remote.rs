@@ -410,7 +410,12 @@ mod tests {
         p.values.insert("wheel.winner".into(), "Ada".into());
         let value = serde_json::to_value(Snapshot::from_project(&p, &[false], vec![])).unwrap();
         assert_eq!(value["values"]["wheel.winner"], "Ada");
-        let back: ControllerLayout = serde_json::from_value(value["layout"].clone()).unwrap();
+        let mut layout = value["layout"].clone();
+        for control in layout["controls"].as_array_mut().unwrap() {
+            let id: u64 = control["id"].as_str().unwrap().parse().unwrap();
+            control["id"] = id.into();
+        }
+        let back: ControllerLayout = serde_json::from_value(layout).unwrap();
         let wheel: Vec<_> = back.controls.iter().filter(|c| c.id >= 900).collect();
         assert_eq!(wheel.len(), 3);
         for (c, a) in wheel.iter().zip(&actions) {

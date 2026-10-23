@@ -132,7 +132,13 @@ impl Desktop {
         Ok(())
     }
     fn new() -> Self {
-        let document = DocumentSession::default();
+        Self::from_document(DocumentSession::default())
+    }
+    #[cfg(test)]
+    fn two_team_demo() -> Self {
+        Self::from_document(DocumentSession::new(overlay_studio::model::Project::fresh()))
+    }
+    fn from_document(document: DocumentSession) -> Self {
         let game = GameSession::new(&document.project);
         let outputs = outputs::OutputManager::new(document.project.routes.len());
         Self {

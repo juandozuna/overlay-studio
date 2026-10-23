@@ -593,7 +593,11 @@ mod tests {
     #[test]
     fn back_and_spring_easing_curves() {
         let mut e = Element::new(1, Kind::Rectangle);
-        e.keyframes = vec![Keyframe::capture(&e, 0.), {
+        e.keyframes = vec![{
+            let mut k = Keyframe::capture(&e, 0.);
+            k.x = 0.;
+            k
+        }, {
             let mut k = Keyframe::capture(&e, 1.);
             k.x = 100.;
             k
