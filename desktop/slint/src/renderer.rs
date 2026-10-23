@@ -4,7 +4,42 @@ use overlay_studio::{
     model::{Asset, Design, MotionAsset},
     scene::{self, FontBook, Resources},
 };
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
+
+/// Opt-in (`OVERLAY_STUDIO_PROFILE=1`) CPU frame-time log: one stderr line per second.
+struct Profile {
+    since: Instant,
+    frames: u32,
+    total: Duration,
+    max: Duration,
+}
+impl Profile {
+    fn from_env() -> Option<Self> {
+        (std::env::var("OVERLAY_STUDIO_PROFILE").as_deref() == Ok("1")).then(|| Self {
+            since: Instant::now(),
+            frames: 0,
+            total: Duration::ZERO,
+            max: Duration::ZERO,
+        })
+    }
+    fn record(&mut self, frame: Duration) {
+        self.frames += 1;
+        self.total += frame;
+        self.max = self.max.max(frame);
+        if self.since.elapsed() >= Duration::from_secs(1) {
+            let avg = self.total.as_secs_f64() * 1000. / self.frames as f64;
+            eprintln!(
+                "[profile] frames {} avg {avg:.2} ms max {:.2} ms",
+                self.frames,
+                self.max.as_secs_f64() * 1000.
+            );
+            *self = Self { since: Instant::now(), frames: 0, total: Duration::ZERO, max: Duration::ZERO };
+        }
+    }
+}
 
 pub struct SceneFrame<'a> {
     pub design: &'a Design,
@@ -30,6 +65,7 @@ pub struct CanvasRenderer {
     generation: u64,
     view_key: u64,
     animated: bool,
+    profile: Option<Profile>,
     pub warning: Option<String>,
 }
 fn target(device: &wgpu::Device, size: [u32; 2]) -> wgpu::Texture {
@@ -69,6 +105,7 @@ impl CanvasRenderer {
             generation: 0,
             view_key: 0,
             animated: false,
+            profile: Profile::from_env(),
             warning: None,
         }
     }
@@ -112,6 +149,7 @@ impl CanvasRenderer {
         {
             return Ok(false);
         }
+        let started = Instant::now();
         if self.generation != scene.generation {
             self.resources = Resources::default();
             self.generation = scene.generation;
@@ -203,6 +241,9 @@ impl CanvasRenderer {
         self.revision = scene.revision;
         self.view_key = scene.view_key;
         self.animated = scene.elapsed.is_some();
+        if let Some(profile) = &mut self.profile {
+            profile.record(started.elapsed());
+        }
         Ok(resized)
     }
 }

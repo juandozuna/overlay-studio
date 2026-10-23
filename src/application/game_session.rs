@@ -9,12 +9,15 @@ use crate::{
 pub struct GameSession {
     pub clocks: Vec<GameClock>,
     wheel_reveal: Option<Instant>,
+    wheel_animation: Option<Instant>,
 }
+const WHEEL_TAIL: Duration = Duration::from_secs(3);
 impl GameSession {
     pub fn new(project: &Project) -> Self {
         Self {
             clocks: project.clocks.iter().map(|_| GameClock::new()).collect(),
             wheel_reveal: None,
+            wheel_animation: None,
         }
     }
     pub fn execute(
@@ -33,7 +36,9 @@ impl GameSession {
         let mut outcome = game_commands::dispatch(project, &mut self.clocks, action)?;
         if spun {
             let seconds = crate::domain::wheel::WheelConfig::read(&project.values).spin_seconds;
-            self.wheel_reveal = Some(Instant::now() + Duration::from_secs_f32(seconds + 0.1));
+            let now = Instant::now();
+            self.wheel_reveal = Some(now + Duration::from_secs_f32(seconds + 0.1));
+            self.wheel_animation = Some(now + Duration::from_secs_f32(seconds) + WHEEL_TAIL);
         }
         self.apply_events(project, &mut outcome)?;
         Ok(outcome)
@@ -59,7 +64,12 @@ impl GameSession {
         outcome.preview_requested |= project.values != before;
         Ok(())
     }
-    pub fn tick(&mut self, project: &mut Project) -> Result<CommandOutcome, CommandError> {
+    /// True while a wheel spin, its winner glow or its confetti needs frames.
+    pub fn animation_busy(&self) -> bool {
+        self.wheel_animation.is_some_and(|end| Instant::now() < end)
+    }
+    /// Publishes the winner once the spin has landed; cheap enough to call every frame.
+    pub fn reveal(&mut self, project: &mut Project) -> CommandOutcome {
         let mut outcome = CommandOutcome::default();
         if self.wheel_reveal.is_some_and(|at| Instant::now() >= at) {
             self.wheel_reveal = None;
@@ -68,6 +78,10 @@ impl GameSession {
                 outcome.preview_requested = true;
             }
         }
+        outcome
+    }
+    pub fn tick(&mut self, project: &mut Project) -> Result<CommandOutcome, CommandError> {
+        let mut outcome = self.reveal(project);
         for (index, (runtime, spec)) in self.clocks.iter_mut().zip(&mut project.clocks).enumerate()
         {
             outcome.document_changed |= runtime.running;
@@ -181,5 +195,20 @@ mod tests {
         assert!(!p.values["wheel.winner"].is_empty());
         game.execute(&mut p, Action::RemoveWheelWinner).unwrap();
         assert_eq!(p.values["wheel.winner"], "");
+    }
+    #[test]
+    fn reveal_runs_without_clocks_and_animation_covers_spin_and_tail() {
+        let mut p = Project::game_night();
+        let mut game = GameSession::new(&p);
+        assert!(!game.animation_busy());
+        game.execute(&mut p, Action::SpinWheel).unwrap();
+        assert!(game.animation_busy());
+        assert!(!game.reveal(&mut p).preview_requested);
+        game.wheel_reveal = Some(Instant::now() - Duration::from_millis(1));
+        assert!(game.reveal(&mut p).preview_requested);
+        assert!(!p.values["wheel.winner"].is_empty());
+        assert!(game.animation_busy());
+        game.wheel_animation = Some(Instant::now() - Duration::from_millis(1));
+        assert!(!game.animation_busy());
     }
 }

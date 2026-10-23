@@ -10,6 +10,7 @@ use std::{collections::BTreeMap, f32::consts::TAU, sync::Mutex, time::Instant};
 const CRAWL_TIME: f32 = 0.1;
 const CRAWL_TRAVEL: f32 = 0.015;
 const TAIL_SECONDS: f32 = 3.;
+const CONFETTI: usize = 90;
 
 pub fn step(n: usize) -> f32 {
     TAU / n.max(1) as f32
@@ -115,9 +116,24 @@ impl Ctx<'_> {
     fn local(&self, p: Vec2) -> Pos2 {
         self.c + Rot2::from_angle(self.rot) * p
     }
-    fn sector(&self, a0: f32, a1: f32, r0: f32, r1: f32, c0: Color32, c1: Color32) {
-        let segs = ((a1 - a0) / (TAU / 120.)).ceil().max(1.) as u32;
+    /// Pie wedge from the centre; `inner` colours the hub vertex and `outer` the arc.
+    fn fan(&self, mesh: &mut Mesh, a0: f32, a1: f32, r: f32, inner: Color32, outer: Color32) {
+        let segs = arc_segments(a1 - a0, r);
+        let base = mesh.vertices.len() as u32;
+        mesh.vertices.push(Vertex { pos: self.c, uv: WHITE_UV, color: inner });
+        for j in 0..=segs {
+            let a = a0 + (a1 - a0) * j as f32 / segs as f32;
+            mesh.vertices.push(Vertex { pos: self.polar(a, r), uv: WHITE_UV, color: outer });
+            if j > 0 {
+                mesh.indices.extend([base, base + j, base + j + 1]);
+            }
+        }
+    }
+    fn ring(&self, a0: f32, a1: f32, r0: f32, r1: f32, c0: Color32, c1: Color32) {
+        let segs = arc_segments(a1 - a0, r1);
         let mut mesh = Mesh::default();
+        mesh.vertices.reserve((segs as usize + 1) * 2);
+        mesh.indices.reserve(segs as usize * 6);
         for j in 0..=segs {
             let a = a0 + (a1 - a0) * j as f32 / segs as f32;
             for (r, color) in [(r0, c0), (r1, c1)] {
@@ -130,6 +146,11 @@ impl Ctx<'_> {
         }
         self.painter.add(Shape::mesh(mesh));
     }
+}
+/// Segments for an arc so the chord stays within about 0.2 px of the true circle.
+pub fn arc_segments(arc: f32, radius: f32) -> u32 {
+    let step = (2. * (1. - 0.2 / radius.max(1.)).clamp(-1., 1.).acos()).clamp(TAU / 360., TAU / 24.);
+    (arc.abs() / step).ceil().max(1.) as u32
 }
 fn mix(a: [u8; 3], b: [u8; 3], t: f32) -> [u8; 3] {
     std::array::from_fn(|i| (a[i] as f32 + (b[i] as f32 - a[i] as f32) * t.clamp(0., 1.)).round() as u8)
@@ -185,6 +206,11 @@ pub fn paint(
     let glow = landed
         .filter(|t| *t >= 0. && *t < TAIL_SECONDS)
         .map(|t| (1. - t / TAIL_SECONDS) * (0.55 + 0.45 * (t * 7.).sin()));
+    let gradient = matches!(cfg.slice, Slice::Gradient);
+    let per_slice = arc_segments(step, rim) as usize + 2;
+    let mut slices = Mesh::default();
+    slices.vertices.reserve(n * per_slice);
+    slices.indices.reserve(n * (per_slice - 2) * 3);
     for i in 0..n {
         let mut color = cfg.slice_color(i);
         if let (Some(g), Some(w)) = (glow, cfg.winner_index) {
@@ -193,18 +219,17 @@ pub fn paint(
             }
         }
         let a0 = angle + i as f32 * step;
-        let (inner, outer) = match cfg.slice {
-            Slice::Gradient => (ctx.col(mix(color, ink, 0.55), 1.), ctx.col(color, 1.)),
-            _ => (ctx.col(color, 1.), ctx.col(color, 1.)),
-        };
-        ctx.sector(a0, a0 + step, 0., rim, inner, outer);
+        let outer = ctx.col(color, 1.);
+        let inner = if gradient { ctx.col(mix(color, ink, 0.55), 1.) } else { outer };
+        ctx.fan(&mut slices, a0, a0 + step, rim, inner, outer);
     }
+    painter.add(Shape::mesh(slices));
     let gap = Stroke::new(stroke_w * 1.5, ctx.col(ink, 0.85));
     for i in 0..n {
         let a = angle + i as f32 * step;
         painter.line_segment([ctx.polar(a, hub), ctx.polar(a, rim)], gap);
     }
-    ctx.sector(0., TAU, rim, r, ctx.col([34, 38, 56], 1.), ctx.col([22, 25, 40], 1.));
+    ctx.ring(0., TAU, rim, r, ctx.col([34, 38, 56], 1.), ctx.col([22, 25, 40], 1.));
     painter.circle_stroke(ctx.c, r, Stroke::new(stroke_w, ctx.col([230, 232, 245], 0.9)));
     for i in 0..n {
         let a = angle + i as f32 * step;
@@ -283,7 +308,8 @@ fn paint_confetti(ctx: &Ctx, cfg: &WheelConfig, t: f32) {
     let r = ctx.r;
     let mut rng = Lcg(cfg.spin_id.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xC0FF_EE);
     let fade = 1. - (t / LIFE).powi(2);
-    for _ in 0..90 {
+    let visible = ctx.painter.clip_rect();
+    for _ in 0..CONFETTI {
         let dir = -std::f32::consts::FRAC_PI_2 + (rng.next() - 0.5) * 1.9;
         let speed = (0.8 + rng.next() * 1.3) * r;
         let spin = (rng.next() - 0.5) * 18.;
@@ -292,6 +318,9 @@ fn paint_confetti(ctx: &Ctx, cfg: &WheelConfig, t: f32) {
         let size = r * (0.025 + rng.next() * 0.025);
         let pos = ctx.c + Vec2::angled(dir) * speed * t + Vec2::new(0., 0.5 * 2.2 * r * t * t);
         let rot = Rot2::from_angle(phase + spin * t);
+        if !visible.expand(size * 2.).contains(pos) {
+            continue;
+        }
         let (w, h) = (size, size * 0.5 * (1. + (t * 9. + phase).sin().abs()));
         let pts = [(-w, -h), (w, -h), (w, h), (-w, h)].map(|(x, y)| pos + rot * Vec2::new(x, y));
         ctx.painter.add(Shape::convex_polygon(pts.to_vec(), ctx.col(color, fade), Stroke::NONE));
@@ -354,6 +383,15 @@ mod tests {
             assert_eq!(slice_at(-label_angle(i, n), n), i);
         }
         assert_eq!(slice_at(0.0001, n), n - 1);
+    }
+    #[test]
+    fn arc_segments_scale_with_arc_and_radius() {
+        assert_eq!(arc_segments(0., 500.), 1);
+        assert!(arc_segments(TAU, 500.) > arc_segments(TAU, 50.));
+        assert!(arc_segments(TAU, 500.) <= 360);
+        assert!(arc_segments(TAU / 8., 486.) <= 15);
+        assert!(arc_segments(TAU / 64., 486.) <= 3);
+        assert_eq!(arc_segments(1., 0.), arc_segments(1., 1.));
     }
     #[test]
     fn flick_is_bounded() {
