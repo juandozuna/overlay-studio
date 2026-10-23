@@ -130,8 +130,9 @@ fn command(s: &mut Desktop, command: &str) -> Result<(), String> {
         }
         "remove" => s.execute(Action::RemoveWheelWinner),
         "restore" => {
+            s.execute(Action::RestoreWheel)?;
             s.wheel.last_spin = None;
-            s.execute(Action::RestoreWheel)
+            Ok(())
         }
         _ => Err("Unknown wheel command".into()),
     }

@@ -34,7 +34,11 @@ pub fn reconcile_clocks(game: &mut GameSession, before: &[ClockSpec], after: &[C
 pub fn sync_team_colors(project: &mut Project) {
     let live: Vec<_> = project.teams.iter().map(|t| team_color_key(t.id)).collect();
     project.values.retain(|key, _| {
-        !(key.starts_with("team.") && key.ends_with(".color")) || live.contains(key)
+        let derived = key
+            .strip_prefix("team.")
+            .and_then(|k| k.strip_suffix(".color"))
+            .is_some_and(|id| id.parse::<u64>().is_ok());
+        !derived || live.contains(key)
     });
     for team in &project.teams {
         project

@@ -26,9 +26,12 @@ pub fn seed_defaults(values: &mut BTreeMap<String, String>) {
 }
 
 /// Live list edit: replaces both the current list and the list Restore returns to.
+/// Clearing the list keeps the previous restore point so Restore can bring it back.
 pub fn set_entries(values: &mut BTreeMap<String, String>, text: &str) {
     values.insert(keys::ENTRIES.into(), text.into());
-    values.insert(keys::ORIGINAL.into(), text.into());
+    if !lines(text).is_empty() {
+        values.insert(keys::ORIGINAL.into(), text.into());
+    }
     clear_winner(values);
 }
 
@@ -51,8 +54,9 @@ pub fn spin(values: &mut BTreeMap<String, String>) -> Result<(), CommandError> {
 }
 
 pub fn remove_winner(values: &mut BTreeMap<String, String>) -> Result<(), CommandError> {
-    let mut entries = WheelConfig::read(values).entries;
-    let index = WheelConfig::read(values)
+    let config = WheelConfig::read(values);
+    let mut entries = config.entries;
+    let index = config
         .winner_index
         .filter(|i| *i < entries.len())
         .ok_or(CommandError::WheelNoWinner)?;
