@@ -99,6 +99,15 @@ fn row(c: &Control, s: &Desktop) -> RemoteRow {
         Action::SpinWheel => r.action = 9,
         Action::RemoveWheelWinner => r.action = 10,
         Action::RestoreWheel => r.action = 11,
+        Action::RollDice => r.action = 12,
+        Action::NextQuestion => r.action = 13,
+        Action::RevealAnswer => r.action = 14,
+        Action::NextParticipant => r.action = 15,
+        Action::StartQuestionTimer => r.action = 16,
+        Action::AwardCurrentTeam { points } => {
+            r.action = 17;
+            r.amount = points.to_string().into();
+        }
         Action::Adjust { field, step } => {
             r.action = 0;
             r.field = p.values.keys().position(|x| x == field).unwrap_or(0) as i32;
@@ -235,6 +244,12 @@ fn action(r: &RemoteRow, s: &Desktop) -> Result<Action, String> {
         9 => Action::SpinWheel,
         10 => Action::RemoveWheelWinner,
         11 => Action::RestoreWheel,
+        12 => Action::RollDice,
+        13 => Action::NextQuestion,
+        14 => Action::RevealAnswer,
+        15 => Action::NextParticipant,
+        16 => Action::StartQuestionTimer,
+        17 => Action::AwardCurrentTeam { points: amount()? },
         _ => return Err("Select an action".into()),
     })
 }
