@@ -59,6 +59,14 @@ The app opens with a five-team **Game Night** project: five 1920×1080 layouts (
 
 **Score effects and sound:** every point added tints the team's tiles green and every point removed tints them black, then they ease back; each layout has its own style (flash and pop, sweep, wipe, shake, sparkle burst). Pick colors, length, sounds for add and subtract (global or per team), wheel sounds, and import your own wav, mp3, ogg or flac files in **Live → Effects and sound**. Imported sounds are saved inside the project. Set `OVERLAY_STUDIO_PROFILE=1` to print preview frame times.
 
+## El Dado (Olimpiadas Bíblicas)
+
+**El Dado** is the dice round of the Bible competition. Each participant rolls a six-colour die, and the colour sets how the question is answered: **ROJO** respuesta directa · **AMARILLO** 4 opciones · **AZUL** alguien del público · **NARANJA** alguien de tu equipo · **MORADO** con la Biblia · **VERDE** pregunta extra (the app shows the rule only; the host handles it). Each question has a 30 s timer, and a correct answer is worth 10 points. The answer stays on the host panel, and A–D options show on screen only for AMARILLO.
+
+Question bank: import a UTF-8 CSV with the columns `book,reference,question,a,b,c,d,correct`. The template is `examples/El Dado Questions Template.csv`; in Excel or Numbers, save as **CSV UTF-8**. No questions ship with the app.
+
+The **6 Dado** design shows the die with the five team chips along the bottom. The Dice layer can be added to any design with the Design tool, and the phone remote has Roll, Next question, Reveal answer and Next participant buttons.
+
 ## Run from source
 
 Slint desktop app:
