@@ -3,13 +3,16 @@ use super::{fx, game_commands::{self, CommandError, CommandOutcome}};
 use crate::{
     domain::{
         dice::{self as keys, DiceConfig, Face},
+        wheel::hex,
         question_bank::{self, Bank, Question},
     },
     model::{CueEvent, GameClock, Project, clock_text},
 };
 use std::{
+    cell::RefCell,
     collections::BTreeMap,
     hash::{BuildHasher, Hasher, RandomState},
+    rc::Rc,
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -23,11 +26,14 @@ pub struct BankStatus {
     pub loaded: bool,
     pub total: usize,
     pub used: usize,
+    /// Unused rows that match the book filter (and have all four options when yellow landed).
+    pub remaining: usize,
     /// Distinct books present, file order.
     pub books: Vec<String>,
     pub filter: String,
 }
 pub struct TurnView {
+    /// Index into `project.teams`.
     pub team_index: usize,
     pub team_name: String,
     /// Empty when the team has nobody.
@@ -45,17 +51,19 @@ fn set(values: &mut Values, key: &str, value: impl Into<String>) {
     values.insert(key.into(), value.into());
 }
 
+/// True once points were awarded this turn (cleared by roll, next participant, back one and import).
+pub fn awarded(values: &Values) -> bool {
+    get(values, keys::AWARDED) == "1"
+}
+
 /// Inserts the bindable text keys and the first turn when missing, leaving existing values untouched.
 pub fn ensure_defaults(project: &mut Project) {
     let values = &mut project.values;
-    for key in [keys::RESULT, keys::RULE, keys::STATUS, keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED]
+    for key in [keys::RESULT, keys::RULE, keys::STATUS, keys::DICE_COLOR, keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED]
         .into_iter()
         .chain(keys::OPTION_KEYS)
     {
         values.entry(key.into()).or_default();
-    }
-    if get(values, keys::TURN_TEAM).parse::<usize>().ok().is_none_or(|i| i >= project.teams.len().max(1)) {
-        set(values, keys::TURN_TEAM, "0");
     }
     refresh_turn(project);
 }
@@ -72,7 +80,7 @@ fn roll_with(values: &mut Values, rng: &mut Rng) {
     let id = DiceConfig::read(values).roll_id + 1;
     set(values, keys::ROLL_ID, id.to_string());
     set(values, keys::FACE, (rng.next() % Face::ALL.len() as u64).to_string());
-    for key in [keys::RESULT, keys::RULE, keys::STATUS] {
+    for key in [keys::RESULT, keys::RULE, keys::STATUS, keys::DICE_COLOR, keys::AWARDED] {
         set(values, key, "");
     }
     clear_question(values);
@@ -86,6 +94,7 @@ pub fn reveal_roll(values: &mut Values) -> bool {
     };
     set(values, keys::RESULT, face.name());
     set(values, keys::RULE, config.rules[face.index()].clone());
+    set(values, keys::DICE_COLOR, hex(config.colors[face.index()]));
     if face.shows_options() {
         if let Some(question) = current_question(values) {
             fill_options(values, &question);
@@ -146,12 +155,27 @@ pub fn timer_state(project: &Project, clocks_running: bool) -> i32 {
 
 // ---- questions ----
 
-fn load_bank(values: &Values) -> Option<Bank> {
+thread_local! {
+    /// The last bank text seen and what it parsed to, so refreshes and draws do not re-parse it.
+    static BANK_CACHE: RefCell<Option<(String, Option<Rc<Bank>>)>> = const { RefCell::new(None) };
+}
+
+fn load_bank(values: &Values) -> Option<Rc<Bank>> {
     let text = values.get(keys::BANK)?;
     if text.trim().is_empty() {
         return None;
     }
-    question_bank::parse(text).ok()
+    BANK_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some((csv, bank)) = cache.as_ref() {
+            if csv == text {
+                return bank.clone();
+            }
+        }
+        let bank = question_bank::parse(text).ok().map(Rc::new);
+        *cache = Some((text.clone(), bank.clone()));
+        bank
+    })
 }
 
 fn used_rows(values: &Values) -> Vec<usize> {
@@ -165,8 +189,8 @@ fn current_question(values: &Values) -> Option<Question> {
 }
 
 fn fill_options(values: &mut Values, question: &Question) {
-    for (key, option) in keys::OPTION_KEYS.iter().zip(&question.options) {
-        set(values, key, option.clone());
+    for ((key, letter), option) in keys::OPTION_KEYS.iter().zip(["A", "B", "C", "D"]).zip(&question.options) {
+        set(values, key, if option.is_empty() { String::new() } else { format!("{letter} · {option}") });
     }
 }
 
@@ -178,9 +202,16 @@ fn clear_question(values: &mut Values) {
 
 /// Replaces the bank with `csv`, or leaves everything untouched and explains why not.
 pub fn import_bank(values: &mut Values, csv: &str) -> Result<BankSummary, String> {
+    if csv.len() > question_bank::MAX_BYTES {
+        return Err(format!("The file is too large ({} MB). The limit is {} MB.", csv.len().div_ceil(1 << 20), question_bank::MAX_BYTES >> 20));
+    }
     let bank = question_bank::parse(csv)?;
+    if bank.rows.len() > question_bank::MAX_ROWS {
+        return Err(format!("The file has {} questions. The limit is {}.", bank.rows.len(), question_bank::MAX_ROWS));
+    }
     set(values, keys::BANK, csv.strip_prefix('\u{feff}').unwrap_or(csv));
     set(values, keys::BANK_USED, "");
+    set(values, keys::AWARDED, "");
     clear_question(values);
     if !get(values, keys::BANK_FILTER).is_empty() && !bank.books().iter().any(|b| b == get(values, keys::BANK_FILTER)) {
         set(values, keys::BANK_FILTER, "");
@@ -191,12 +222,18 @@ pub fn import_bank(values: &mut Values, csv: &str) -> Result<BankSummary, String
 pub fn bank_status(values: &Values) -> BankStatus {
     let filter = get(values, keys::BANK_FILTER).to_string();
     let Some(bank) = load_bank(values) else {
-        return BankStatus { loaded: false, total: 0, used: 0, books: vec![], filter };
+        return BankStatus { loaded: false, total: 0, used: 0, remaining: 0, books: vec![], filter };
     };
     let mut used = used_rows(values);
     used.sort_unstable();
     used.dedup();
-    BankStatus { loaded: true, total: bank.rows.len(), used: used.iter().filter(|n| (1..=bank.rows.len()).contains(*n)).count(), books: bank.books(), filter }
+    let yellow = get(values, keys::RESULT) == Face::Amarillo.name();
+    let remaining = (1..=bank.rows.len())
+        .filter(|n| used.binary_search(n).is_err())
+        .filter(|n| filter.is_empty() || bank.rows[n - 1].book == filter)
+        .filter(|n| !yellow || bank.rows[n - 1].has_options())
+        .count();
+    BankStatus { loaded: true, total: bank.rows.len(), used: used.iter().filter(|n| (1..=bank.rows.len()).contains(*n)).count(), remaining, books: bank.books(), filter }
 }
 
 pub fn reset_used(values: &mut Values) {
@@ -213,8 +250,11 @@ pub fn next_question(values: &mut Values) -> Result<(), CommandError> {
 
 fn next_question_with(values: &mut Values, rng: &mut Rng) -> Result<(), CommandError> {
     let bank = load_bank(values).ok_or_else(|| CommandError::Dice("No questions loaded. Import a CSV to draw questions.".into()))?;
-    let face = DiceConfig::read(values).face;
-    let yellow = face.is_some_and(Face::shows_options);
+    if get(values, keys::RESULT).is_empty() {
+        let rolling = DiceConfig::read(values).face.is_some();
+        return Err(CommandError::Dice(if rolling { "The dice is still rolling" } else { "Roll the dice first" }.into()));
+    }
+    let yellow = get(values, keys::RESULT) == Face::Amarillo.name();
     let filter = get(values, keys::BANK_FILTER).to_string();
     let in_book = if filter.is_empty() { String::new() } else { format!(" for {filter}") };
     let used = used_rows(values);
@@ -240,8 +280,7 @@ fn next_question_with(values: &mut Values, rng: &mut Rng) -> Result<(), CommandE
     set(values, keys::BANK_CURRENT, row.to_string());
     let used_text = values.get(keys::BANK_USED).map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
     set(values, keys::BANK_USED, used_text.map_or(row.to_string(), |u| format!("{u},{row}")));
-    let landed_yellow = yellow && !get(values, keys::RESULT).is_empty();
-    if landed_yellow {
+    if yellow {
         fill_options(values, question);
     } else {
         for key in keys::OPTION_KEYS {
@@ -267,8 +306,32 @@ fn participants(values: &Values, team_id: u64) -> Vec<String> {
 fn lines(text: &str) -> Vec<String> {
     text.lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect()
 }
-fn turn_team(project: &Project) -> usize {
-    get(&project.values, keys::TURN_TEAM).parse().ok().filter(|i| *i < project.teams.len()).unwrap_or(0)
+/// Index of the team that is up, from the team id stored in `TURN_TEAM`; `None` when nobody is up or that team is gone.
+fn turn_team(project: &Project) -> Option<usize> {
+    let id: u64 = get(&project.values, keys::TURN_TEAM).parse().ok().filter(|id| *id != 0)?;
+    project.teams.iter().position(|t| t.id == id)
+}
+/// True when `TURN_TEAM` names a team that no longer exists (as opposed to nobody being up yet).
+fn turn_team_gone(project: &Project) -> bool {
+    !matches!(get(&project.values, keys::TURN_TEAM), "" | "0") && turn_team(project).is_none()
+}
+/// Where the turn lands when nobody is up or the team is gone: the first team with participants.
+fn fallback_team(project: &Project) -> usize {
+    (0..project.teams.len()).find(|t| has_participants(project, *t)).unwrap_or(0)
+}
+fn up_team(project: &Project) -> usize {
+    turn_team(project).unwrap_or_else(|| fallback_team(project))
+}
+/// Points `TURN_TEAM` at the fallback team when nobody is up or the team is gone, dropping the round of a vanished team.
+fn repair_turn(project: &mut Project) {
+    if turn_team(project).is_some() || project.teams.is_empty() {
+        return;
+    }
+    if turn_team_gone(project) {
+        clear_round(&mut project.values);
+    }
+    let id = project.teams[fallback_team(project)].id;
+    set(&mut project.values, keys::TURN_TEAM, id.to_string());
 }
 fn turn_index(project: &Project, team: usize) -> usize {
     let Some(t) = project.teams.get(team) else { return 0 };
@@ -297,14 +360,16 @@ fn current_participant(project: &Project, team: usize) -> String {
 
 /// Keeps the bindable "TURNO" texts in step with the turn state.
 fn refresh_turn(project: &mut Project) {
-    let team = turn_team(project);
+    repair_turn(project);
+    let team = up_team(project);
     let (who, team_label) = (current_participant(project, team), team_name(project, team));
     set(&mut project.values, keys::TURN_NAME, who);
     set(&mut project.values, keys::TURN_TEAM_NAME, team_label);
 }
 
+/// Read-only: when the team that was up is gone this reports the fallback team; `ensure_defaults` and the next turn action make it stick.
 pub fn turn_view(project: &Project) -> TurnView {
-    let team = turn_team(project);
+    let team = up_team(project);
     let count = project.teams.get(team).map_or(0, |t| participants(&project.values, t.id).len());
     TurnView {
         team_index: team,
@@ -328,60 +393,84 @@ pub fn participants_text(project: &Project, team_index: usize) -> String {
     project.teams.get(team_index).map_or_else(String::new, |t| participants(&project.values, t.id).join("\n"))
 }
 
+/// A new turn: no roll, rule, die colour, question, options, annulled banner or award left over.
 fn clear_round(values: &mut Values) {
     clear_question(values);
-    set(values, keys::STATUS, "");
+    for key in [keys::RESULT, keys::RULE, keys::FACE, keys::DICE_COLOR, keys::STATUS, keys::AWARDED] {
+        set(values, key, "");
+    }
 }
 
 /// Advances the team that just played, then hands the turn to the next team that has participants.
 pub fn next_participant(project: &mut Project) -> Result<(), CommandError> {
-    ensure_defaults(project);
     let teams = project.teams.len();
     if !(0..teams).any(|t| has_participants(project, t)) {
         return Err(CommandError::Dice("Add participants first".into()));
     }
-    let current = turn_team(project);
+    let gone = turn_team_gone(project);
+    ensure_defaults(project);
+    if gone {
+        return Ok(()); // landed on the first team with participants; nothing was played yet
+    }
+    let current = up_team(project);
     if let Some(count) = project.teams.get(current).map(|t| participants(&project.values, t.id).len()).filter(|c| *c > 0) {
         let next = (turn_index(project, current) + 1) % count;
         set_turn_index(project, current, next);
     }
     if let Some(next) = (1..=teams).map(|step| (current + step) % teams).find(|t| has_participants(project, *t)) {
-        set(&mut project.values, keys::TURN_TEAM, next.to_string());
+        set(&mut project.values, keys::TURN_TEAM, project.teams[next].id.to_string());
     }
     clear_round(&mut project.values);
     refresh_turn(project);
     Ok(())
 }
 
-/// "Back one": undoes the last `next_participant`.
+/// "Back one": undoes the last `next_participant`. Callers with a running session use `back_one`, which also resets the question clock.
 pub fn previous_participant(project: &mut Project) -> Result<(), CommandError> {
-    ensure_defaults(project);
     let teams = project.teams.len();
     if !(0..teams).any(|t| has_participants(project, t)) {
         return Err(CommandError::Dice("Add participants first".into()));
     }
-    let current = turn_team(project);
+    let gone = turn_team_gone(project);
+    ensure_defaults(project);
+    if gone {
+        return Ok(());
+    }
+    let current = up_team(project);
     let Some(previous) = (1..=teams).map(|step| (current + teams - step % teams) % teams).find(|t| has_participants(project, *t)) else {
         return Ok(());
     };
     let count = participants(&project.values, project.teams[previous].id).len();
     let index = (turn_index(project, previous) + count - 1) % count;
     set_turn_index(project, previous, index);
-    set(&mut project.values, keys::TURN_TEAM, previous.to_string());
+    set(&mut project.values, keys::TURN_TEAM, project.teams[previous].id.to_string());
     clear_round(&mut project.values);
     refresh_turn(project);
     Ok(())
 }
 
+/// `previous_participant` plus a stopped, full question clock so the turn we go back to starts clean.
+pub fn back_one(project: &mut Project, clocks: &mut [GameClock]) -> Result<(), CommandError> {
+    previous_participant(project)?;
+    reset_question_clock(project, clocks);
+    Ok(())
+}
+
 /// Adds (or removes, when negative) points for the team that is up, like `Action::Adjust` does.
 pub fn award_current_team(project: &mut Project, points: i64, outcome: &mut CommandOutcome) -> Result<(), CommandError> {
+    if turn_team_gone(project) {
+        return Err(CommandError::Dice("The team that was up no longer exists. Click Next participant.".into()));
+    }
     ensure_defaults(project);
-    let team = turn_team(project);
-    let field = project.teams.get(team).map(|t| t.score_key.clone()).ok_or_else(|| CommandError::Dice("Nobody is up yet".into()))?;
+    let team = turn_team(project).ok_or_else(|| CommandError::Dice("Nobody is up yet".into()))?;
+    let field = project.teams[team].score_key.clone();
     if project.values.get(&field).is_some_and(|v| v.trim().parse::<i64>().is_err()) {
         return Err(CommandError::NonNumericField(field));
     }
     project.adjust_score(&field, points);
+    if points != 0 {
+        set(&mut project.values, keys::AWARDED, if points > 0 { "1" } else { "" });
+    }
     outcome.document_changed |= points != 0;
     outcome.preview_requested = true;
     fx::score_changed(project, &field, points, outcome);
@@ -417,6 +506,7 @@ mod tests {
     use super::*;
     use crate::domain::dice::{BANK, BANK_CURRENT, BANK_USED};
 
+    const COLORS_KEY: &str = keys::COLORS;
     const HEAD: &str = "book,reference,question,A,B,C,D,correct\n";
     fn csv(rows: &[(&str, &str, bool)]) -> String {
         let body: String = rows
@@ -429,6 +519,11 @@ mod tests {
         let mut v = Values::new();
         import_bank(&mut v, &csv(rows)).unwrap();
         v
+    }
+    /// A finished roll of face `index`, as `roll` + `reveal_roll` leave the values.
+    fn land(v: &mut Values, index: usize) {
+        v.insert(keys::FACE.into(), index.to_string());
+        assert!(reveal_roll(v));
     }
     fn used(v: &Values) -> Vec<usize> {
         let mut u = used_rows(v);
@@ -473,16 +568,23 @@ mod tests {
         let mut v = bank_values(&[("1 Samuel", "q1", true), ("2 Reyes", "q2", true), ("1 Samuel", "q3", false)]);
         assert!(!bank_status(&Values::new()).loaded);
         set_bank_filter(&mut v, "2 Reyes");
+        land(&mut v, 0);
+        assert_eq!(bank_status(&v).remaining, 1);
         next_question(&mut v).unwrap();
         let s = bank_status(&v);
-        assert_eq!((s.loaded, s.total, s.used, s.filter.as_str()), (true, 3, 1, "2 Reyes"));
+        assert_eq!((s.loaded, s.total, s.used, s.remaining, s.filter.as_str()), (true, 3, 1, 0, "2 Reyes"));
         assert_eq!(s.books, ["1 Samuel", "2 Reyes"]);
         reset_used(&mut v);
         assert_eq!(bank_status(&v).used, 0);
+        set_bank_filter(&mut v, "");
+        assert_eq!(bank_status(&v).remaining, 3);
+        land(&mut v, 1);
+        assert_eq!(bank_status(&v).remaining, 2); // yellow needs all four options
     }
     #[test]
     fn draws_never_repeat_until_exhausted_then_error() {
         let mut v = bank_values(&[("A", "q1", true), ("A", "q2", false), ("B", "q3", true), ("B", "q4", true)]);
+        land(&mut v, 0);
         for drawn in 1..=4 {
             next_question(&mut v).unwrap();
             assert_eq!(used(&v).len(), drawn);
@@ -503,6 +605,7 @@ mod tests {
     #[test]
     fn filter_is_honoured_and_exhaustion_mentions_it() {
         let mut v = bank_values(&[("A", "q1", true), ("B", "q2", true), ("B", "q3", true)]);
+        land(&mut v, 0);
         set_bank_filter(&mut v, "A");
         next_question(&mut v).unwrap();
         assert_eq!(v[keys::QUESTION_TEXT], "q1");
@@ -519,49 +622,83 @@ mod tests {
     #[test]
     fn yellow_skips_rows_without_options_and_says_so_when_none_left() {
         let mut v = bank_values(&[("A", "open1", false), ("A", "open2", false), ("A", "mc", true)]);
-        v.insert(keys::FACE.into(), "1".into());
+        land(&mut v, 1);
         next_question(&mut v).unwrap();
         assert_eq!(v[keys::QUESTION_TEXT], "mc");
         let err = next_question(&mut v).unwrap_err().to_string();
         assert!(err.contains("four options"));
         assert_eq!(used(&v), [3]);
-        v.insert(keys::FACE.into(), "0".into());
+        land(&mut v, 0);
         next_question(&mut v).unwrap();
         assert!(v[keys::QUESTION_TEXT].starts_with("open"));
     }
     #[test]
-    fn options_only_fill_when_landed_on_yellow() {
+    fn options_only_fill_when_landed_on_yellow_and_carry_their_letter() {
         let mut v = bank_values(&[("A", "q1", true)]);
-        // yellow rolled, still rolling: options wait for the landing
+        // a pending roll (face chosen, nothing landed) cannot draw
         v.insert(keys::FACE.into(), "1".into());
-        next_question(&mut v).unwrap();
-        assert!(keys::OPTION_KEYS.iter().all(|k| v[*k].is_empty()));
-        assert!(reveal_roll(&mut v));
-        assert_eq!(keys::OPTION_KEYS.map(|k| v[k].clone()), ["a", "b", "c", "d"]);
+        assert_eq!(next_question(&mut v), Err(CommandError::Dice("The dice is still rolling".into())));
         // landed on yellow, then draw: filled immediately
+        land(&mut v, 1);
+        next_question(&mut v).unwrap();
+        assert_eq!(keys::OPTION_KEYS.map(|k| v[k].clone()), ["A · a", "B · b", "C · c", "D · d"]);
+        // a redraw is allowed ("Skip question")
         reset_used(&mut v);
         next_question(&mut v).unwrap();
-        assert_eq!(v[keys::OPTION_KEYS[2]], "c");
+        assert_eq!(v[keys::OPTION_KEYS[2]], "C · c");
         // any other colour leaves them empty
         let mut v = bank_values(&[("A", "q1", true)]);
-        v.insert(keys::FACE.into(), "3".into());
+        land(&mut v, 3);
         next_question(&mut v).unwrap();
-        reveal_roll(&mut v);
         assert!(keys::OPTION_KEYS.iter().all(|k| v[*k].is_empty()));
         assert_eq!(v[keys::HOST_ANSWER], "B · b");
         assert_eq!(v[keys::HOST_REF], "r");
     }
     #[test]
+    fn a_stale_face_cannot_put_options_on_screen() {
+        let mut v = bank_values(&[("A", "q1", true)]);
+        land(&mut v, 3); // landed naranja
+        v.insert(keys::FACE.into(), "1".into()); // FACE says yellow, the landed RESULT does not
+        next_question(&mut v).unwrap();
+        assert!(keys::OPTION_KEYS.iter().all(|k| v[*k].is_empty()));
+    }
+    #[test]
+    fn next_question_needs_a_landed_roll() {
+        let mut v = bank_values(&[("A", "q1", true)]);
+        assert_eq!(next_question(&mut v), Err(CommandError::Dice("Roll the dice first".into())));
+        roll(&mut v).unwrap();
+        assert_eq!(next_question(&mut v), Err(CommandError::Dice("The dice is still rolling".into())));
+        assert!(used(&v).is_empty());
+        assert!(reveal_roll(&mut v));
+        assert!(next_question(&mut v).is_ok());
+    }
+    #[test]
+    fn bank_text_is_parsed_once_and_limits_are_enforced() {
+        let mut v = bank_values(&[("A", "q1", true), ("A", "q2", true)]);
+        assert!(Rc::ptr_eq(&load_bank(&v).unwrap(), &load_bank(&v).unwrap()));
+        let other = bank_values(&[("B", "q9", true)]);
+        assert_eq!(load_bank(&other).unwrap().rows.len(), 1);
+        assert_eq!(load_bank(&v).unwrap().rows.len(), 2);
+        let big = format!("{HEAD}{}", "a,r,q,1,2,3,4,A\n".repeat(question_bank::MAX_ROWS + 1));
+        let err = import_bank(&mut v, &big).err().unwrap();
+        assert!(err.contains("5000"), "{err}");
+        let huge = format!("{HEAD}{}", "x".repeat(question_bank::MAX_BYTES));
+        assert!(import_bank(&mut v, &huge).err().unwrap().contains("too large"));
+        assert_eq!(bank_status(&v).total, 2);
+    }
+    #[test]
     fn roll_sets_face_hides_result_and_clears_question() {
         let mut v = bank_values(&[("A", "q1", true)]);
+        land(&mut v, 0);
         next_question(&mut v).unwrap();
         v.insert(keys::STATUS.into(), keys::STATUS_ANNULLED.into());
         v.insert(keys::REVEALED.into(), "1".into());
+        v.insert(keys::AWARDED.into(), "1".into());
         roll(&mut v).unwrap();
         let c = DiceConfig::read(&v);
         assert_eq!(c.roll_id, 1);
         assert!(c.face.is_some());
-        for k in [keys::RESULT, keys::RULE, keys::STATUS, keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED, BANK_CURRENT] {
+        for k in [keys::RESULT, keys::RULE, keys::STATUS, keys::DICE_COLOR, keys::AWARDED, keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED, BANK_CURRENT] {
             assert_eq!(v[k], "", "{k}");
         }
         roll(&mut v).unwrap();
@@ -588,9 +725,12 @@ mod tests {
         v.insert(format!("{}5", keys::RULES_PREFIX), "Verde – otra".into());
         assert!(reveal_roll(&mut v));
         assert_eq!((v[keys::RESULT].as_str(), v[keys::RULE].as_str()), ("VERDE", "Verde – otra"));
+        assert_eq!(v[keys::DICE_COLOR], "#62F0A0");
+        v.insert(COLORS_KEY.into(), "#000001".into());
         v.insert(keys::FACE.into(), "0".into());
         reveal_roll(&mut v);
         assert_eq!(v[keys::RULE], Face::Rojo.default_rule());
+        assert_eq!(v[keys::DICE_COLOR], "#000001");
     }
     #[test]
     fn reveal_answer_toggles() {
@@ -610,6 +750,7 @@ mod tests {
             assert_eq!(who(&p), name);
         }
         assert_eq!(p.values[keys::TURN_TEAM_NAME], "Team 0");
+        assert_eq!(p.values[keys::TURN_TEAM], "1"); // the team id, not its index
         let view = turn_view(&p);
         assert_eq!((view.team_index, view.participant.as_str(), view.position.as_str()), (0, "T0P1", "Participante 2 de 2"));
         assert!(view.has_participants);
@@ -619,7 +760,7 @@ mod tests {
         let mut p = team_project(&[0, 2, 0]);
         assert_eq!(turn_view(&p).participant, "");
         next_participant(&mut p).unwrap();
-        assert_eq!((p.values[keys::TURN_TEAM].as_str(), who(&p).as_str()), ("1", "T1P0"));
+        assert_eq!((p.values[keys::TURN_TEAM].as_str(), who(&p).as_str()), ("2", "T1P0"));
         next_participant(&mut p).unwrap();
         assert_eq!(who(&p), "T1P1");
         let mut empty = team_project(&[0, 0]);
@@ -628,16 +769,61 @@ mod tests {
         assert!(!turn_view(&empty).has_participants);
     }
     #[test]
-    fn next_participant_clears_the_question_state() {
+    fn next_participant_clears_the_whole_round() {
         let mut p = team_project(&[1, 1]);
         p.values.insert(BANK.into(), csv(&[("A", "q", true)]));
+        land(&mut p.values, 1);
         next_question(&mut p.values).unwrap();
         p.values.insert(keys::STATUS.into(), keys::STATUS_ANNULLED.into());
+        p.values.insert(keys::AWARDED.into(), "1".into());
         next_participant(&mut p).unwrap();
-        for k in [keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED, keys::STATUS, BANK_CURRENT, keys::OPTION_KEYS[0]] {
+        for k in [keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED, keys::STATUS, BANK_CURRENT, keys::OPTION_KEYS[0], keys::RESULT, keys::RULE, keys::FACE, keys::DICE_COLOR, keys::AWARDED] {
             assert_eq!(p.values[k], "", "{k}");
         }
         assert_eq!(used(&p.values), [1]);
+        assert!(!awarded(&p.values));
+        // "Back one" clears it too
+        land(&mut p.values, 2);
+        previous_participant(&mut p).unwrap();
+        assert_eq!((p.values[keys::RESULT].as_str(), p.values[keys::FACE].as_str()), ("", ""));
+    }
+    #[test]
+    fn next_and_back_reset_the_question_clock() {
+        let mut p = team_project(&[1, 1]);
+        p.clocks[0].value_key = keys::QUESTION_CLOCK_KEY.into();
+        let mut clocks = vec![GameClock::new()];
+        start_question_timer(&mut p, &mut clocks, &mut CommandOutcome::default()).unwrap();
+        p.clocks[0].seconds = 12.;
+        back_one(&mut p, &mut clocks).unwrap();
+        assert!(!clocks[0].running);
+        assert_eq!((p.clocks[0].seconds, p.values[keys::QUESTION_CLOCK_KEY].as_str()), (keys::QUESTION_SECONDS, "00:30"));
+    }
+    #[test]
+    fn a_vanished_team_falls_back_and_refuses_points() {
+        let mut p = team_project(&[1, 1, 1]);
+        next_participant(&mut p).unwrap();
+        next_participant(&mut p).unwrap();
+        assert_eq!(p.values[keys::TURN_TEAM], "3");
+        p.values.insert(keys::STATUS.into(), keys::STATUS_ANNULLED.into());
+        p.teams.pop();
+        assert_eq!(turn_view(&p).team_index, 0);
+        assert_eq!(
+            award_current_team(&mut p, 10, &mut CommandOutcome::default()),
+            Err(CommandError::Dice("The team that was up no longer exists. Click Next participant.".into()))
+        );
+        assert_eq!((p.values["team0.score"].as_str(), p.values["team1.score"].as_str()), ("0", "0"));
+        ensure_defaults(&mut p);
+        assert_eq!((p.values[keys::TURN_TEAM].as_str(), p.values[keys::STATUS].as_str(), who(&p).as_str()), ("1", "", "T0P0"));
+    }
+    #[test]
+    fn nobody_up_yet_starts_on_the_first_team() {
+        for seed in ["", "0", "x"] {
+            let mut p = team_project(&[1, 1]);
+            p.values.insert(keys::TURN_TEAM.into(), seed.into());
+            assert_eq!(turn_view(&p).team_index, 0);
+            ensure_defaults(&mut p);
+            assert_eq!(p.values[keys::TURN_TEAM], "1", "{seed:?}");
+        }
     }
     #[test]
     fn previous_participant_undoes_next_including_wraps() {
@@ -678,8 +864,10 @@ mod tests {
         assert_eq!((p.values["team0.score"].as_str(), p.values["team1.score"].as_str()), ("0", "10"));
         assert_eq!(outcome.events, vec![CueEvent::ScoreAdded { field: "team1.score".into() }]);
         assert!(outcome.document_changed);
+        assert!(awarded(&p.values));
         let mut outcome = CommandOutcome::default();
         award_current_team(&mut p, -10, &mut outcome).unwrap();
+        assert!(!awarded(&p.values));
         assert_eq!(p.values["team1.score"], "0");
         assert_eq!(outcome.events, vec![CueEvent::ScoreRemoved { field: "team1.score".into() }]);
         let mut none = team_project(&[]);
