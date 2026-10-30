@@ -1,6 +1,6 @@
-use super::{fx, wheel};
+use super::{dice, fx, wheel};
 use crate::{
-    domain::{controls::Action, sound},
+    domain::{controls::Action, dice as keys, sound},
     model::{CueEvent, CueTarget, GameClock, Project, clock_text},
 };
 use std::{fmt, time::Instant};
@@ -144,14 +144,38 @@ pub fn dispatch(
             outcome.document_changed = true;
             outcome.preview_requested = true;
         }
-        Action::RollDice
-        | Action::NextQuestion
-        | Action::RevealAnswer
-        | Action::NextParticipant
-        | Action::StartQuestionTimer
-        | Action::AwardCurrentTeam { .. } => {
-            // Contract stub: the El Dado logic task replaces this arm.
-            return Err(CommandError::Dice("El Dado is not wired yet".into()));
+        Action::RollDice => {
+            dice::roll(&mut project.values)?;
+            dice::reset_question_clock(project, clocks);
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::NextQuestion => {
+            dice::next_question(&mut project.values)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::RevealAnswer => {
+            dice::toggle_reveal(&mut project.values);
+            if project.values.get(keys::REVEALED).is_some_and(|v| v == "1") {
+                dice::pause_question_clock(project, clocks);
+            }
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::NextParticipant => {
+            dice::next_participant(project)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::StartQuestionTimer => {
+            dice::start_question_timer(project, clocks, &mut outcome)?;
+            outcome.document_changed = true;
+            outcome.preview_requested = true;
+        }
+        Action::AwardCurrentTeam { points } => {
+            dice::award_current_team(project, points, &mut outcome)?;
+            dice::pause_question_clock(project, clocks);
         }
         Action::RunCue { id } => {
             let target = project
@@ -252,7 +276,7 @@ fn reset_clock(
     outcome.events.push(CueEvent::ClockReset { clock: index });
     Ok(())
 }
-fn sync_primary_clock(project: &mut Project) {
+pub(super) fn sync_primary_clock(project: &mut Project) {
     if let Some(clock) = project.clocks.first() {
         project.clock_seconds = clock.seconds;
         project.countdown = clock.countdown;
