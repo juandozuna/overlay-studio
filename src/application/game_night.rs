@@ -127,8 +127,7 @@ fn wheel_stage(teams: &[Team], first: u64) -> Builder {
     b
 }
 const CARD: [u8; 4] = [20, 22, 32, 235];
-// TODO: switch to dice::DICE_COLOR once task A commits it
-const DICE_COLOR_KEY: &str = "dice.color";
+const DICE_COLOR_KEY: &str = dice::DICE_COLOR;
 const CARD_LIGHT: [u8; 4] = [34, 38, 56, 235];
 
 impl Builder {
