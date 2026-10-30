@@ -466,3 +466,72 @@ pub fn connect(ui: &StudioWindow, state: Rc<RefCell<Desktop>>) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use overlay_studio::domain::controls::{Control, ControllerLayout};
+
+    fn control(action: Action) -> Control {
+        let project = overlay_studio::model::Project::game_night();
+        let mut c = project.controller.controls[0].clone();
+        c.action = action;
+        c
+    }
+
+    #[test]
+    fn el_dado_actions_round_trip_through_remote_ids_12_to_17() {
+        let s = Desktop::two_team_demo();
+        let table = [
+            (Action::RollDice, 12, ""),
+            (Action::NextQuestion, 13, ""),
+            (Action::RevealAnswer, 14, ""),
+            (Action::NextParticipant, 15, ""),
+            (Action::StartQuestionTimer, 16, ""),
+            (Action::AwardCurrentTeam { points: 10 }, 17, "10"),
+            (Action::AwardCurrentTeam { points: -10 }, 17, "-10"),
+            (Action::AwardCurrentTeam { points: 0 }, 17, "0"),
+        ];
+        for (a, id, amount) in &table {
+            let r = row(&control(a.clone()), &s);
+            assert_eq!((r.action, r.amount.as_str()), (*id, *amount), "{a:?}");
+            assert_eq!(action(&r, &s).as_ref(), Ok(a), "{a:?}");
+        }
+        // the ids are distinct from every older action and from each other
+        for older in [Action::SpinWheel, Action::RemoveWheelWinner, Action::RestoreWheel, Action::ClockToggle, Action::ClockReset] {
+            assert!(!(12..=17).contains(&row(&control(older), &s).action));
+        }
+        assert_eq!(table.iter().map(|(_, id, _)| *id).collect::<std::collections::BTreeSet<_>>().len(), 6);
+    }
+
+    #[test]
+    fn el_dado_ids_reject_a_bad_amount_and_unknown_ids() {
+        let s = Desktop::two_team_demo();
+        let mut r = row(&control(Action::AwardCurrentTeam { points: 10 }), &s);
+        r.amount = "abc".into();
+        assert_eq!(action(&r, &s), Err("Enter a signed whole-number amount".to_string()));
+        r.amount = "".into();
+        assert!(action(&r, &s).is_err());
+        r.action = 18;
+        assert_eq!(action(&r, &s), Err("Select an action".to_string()));
+        // actions without an amount ignore a stray one
+        let mut r = row(&control(Action::RollDice), &s);
+        r.amount = "junk".into();
+        assert_eq!(action(&r, &s), Ok(Action::RollDice));
+    }
+
+    #[test]
+    fn every_el_dado_control_of_the_game_night_layout_survives_the_remote_row() {
+        let s = Desktop::two_team_demo();
+        let layout: ControllerLayout = overlay_studio::model::Project::game_night().controller;
+        let mut seen = 0;
+        for c in &layout.controls {
+            let r = row(c, &s);
+            if (12..=17).contains(&r.action) {
+                seen += 1;
+                assert_eq!(action(&r, &s).as_ref(), Ok(&c.action), "{}", c.label);
+            }
+        }
+        assert!(seen >= 7, "only {seen} El Dado buttons found");
+    }
+}
