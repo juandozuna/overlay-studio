@@ -1,3 +1,4 @@
+pub mod dice;
 pub mod fx;
 pub mod wheel;
 use crate::model::*;
@@ -122,15 +123,16 @@ pub struct Resources {
     image_data: HashMap<u64, Arc<egui::ColorImage>>,
     motions: HashMap<u64, MotionTexture>,
     pub wheel_clock: wheel::WheelClock,
+    pub dice_clock: dice::DiceClock,
     pub fx_clock: fx::FxClock,
 }
 impl Resources {
     pub fn wheel_busy(&self) -> bool {
         self.wheel_clock.busy()
     }
-    /// True while a wheel spin or a score effect still needs frames.
+    /// True while a wheel spin, a dice roll or a score effect still needs frames.
     pub fn animating(&self) -> bool {
-        self.wheel_busy() || self.fx_clock.busy()
+        self.wheel_busy() || self.dice_clock.busy() || self.fx_clock.busy()
     }
     pub fn install_motion(
         &mut self,
@@ -454,6 +456,14 @@ pub fn paint_scene(
                 e.opacity * alpha,
                 values,
                 &resources.wheel_clock,
+            ),
+            Kind::Dice => dice::paint(
+                painter,
+                rect,
+                e.rotation.to_radians(),
+                e.opacity * alpha,
+                values,
+                &resources.dice_clock,
             ),
             Kind::Line => {
                 painter.line_segment(

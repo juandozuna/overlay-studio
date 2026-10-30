@@ -1,6 +1,8 @@
 mod ai_panel;
 mod animation_panel;
 mod audio;
+mod dado_panel;
+mod dice_inspector;
 #[cfg(test)]
 mod configuration_tests;
 mod events_panel;
@@ -38,6 +40,7 @@ struct Desktop {
     animation: animation_panel::Session,
     events: events_panel::Session,
     wheel: wheel_panel::Session,
+    dado: dado_panel::Session,
     fx: fx_panel::Session,
     ai: ai_panel::Session,
     recovery: recovery::Manager,
@@ -153,6 +156,7 @@ impl Desktop {
             animation: animation_panel::Session::default(),
             events: events_panel::Session::default(),
             wheel: wheel_panel::Session::default(),
+            dado: dado_panel::Session::default(),
             fx: fx_panel::Session::default(),
             ai: ai_panel::Session::default(),
             recovery: recovery::Manager::new(),
@@ -213,7 +217,9 @@ fn refresh(ui: &StudioWindow, state: &Desktop) {
     animation_panel::refresh_panel(ui, state);
     events_panel::refresh_panel(ui, state);
     wheel_panel::refresh_panel(ui, state);
+    dado_panel::refresh_panel(ui, state);
     fx_panel::refresh_panel(ui, state);
+    dice_inspector::refresh_panel(ui, state);
     let s = &state.document;
     let d = s.active();
     ui.set_project_name(s.project.name.clone().into());
@@ -452,6 +458,7 @@ fn report(ui: &StudioWindow, result: Result<(), String>) {
 }
 fn refresh_runtime(ui: &StudioWindow, state: &Desktop) {
     wheel_panel::refresh_panel(ui, state);
+    dado_panel::refresh_panel(ui, state);
     fx_panel::refresh_panel(ui, state);
     live_values::refresh_panel(ui, state);
     ui.set_dirty(state.document.dirty);
@@ -1123,12 +1130,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         3 => Kind::Triangle,
                         4 => Kind::Diamond,
                         5 => Kind::Line,
+                        8 => Kind::Dice,
                         _ => Kind::Text,
                     };
                     let (w, h) = if (x - ox).abs() < 4. && (y - oy).abs() < 4. {
-                        (320., 140.)
+                        dice_inspector::default_size(kind).unwrap_or((320., 140.))
                     } else {
-                        ((x - ox).abs().max(1.), (y - oy).abs().max(1.))
+                        dice_inspector::square(
+                            kind,
+                            (x - ox).abs().max(1.),
+                            (y - oy).abs().max(1.),
+                        )
                     };
                     state.document.add(kind, x.min(ox), y.min(oy), w, h)?;
                     ui.set_tool(0);
@@ -1208,11 +1220,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             3 => Kind::Triangle,
             4 => Kind::Diamond,
             5 => Kind::Line,
+            8 => Kind::Dice,
             _ => Kind::Text,
         };
+        let (w, h) = dice_inspector::default_size(kind).unwrap_or((320., 140.));
         let result = state
             .document
-            .add(kind, (dx - 160.).max(0.), (dy - 70.).max(0.), 320., 140.)
+            .add(kind, (dx - w / 2.).max(0.), (dy - h / 2.).max(0.), w, h)
             .map(|_| ());
         ui.set_tool(0);
         report(&ui, result);
@@ -1383,7 +1397,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     animation_panel::connect(&ui, state.clone());
     events_panel::connect(&ui, state.clone());
     wheel_panel::connect(&ui, state.clone());
+    dado_panel::connect(&ui, state.clone());
     fx_panel::connect(&ui, state.clone());
+    dice_inspector::connect(&ui, state.clone());
     live_values::connect(&ui, state.clone());
     let weak = ui.as_weak();
     let shared = state.clone();
@@ -1437,6 +1453,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             if revealed {
                 wheel_panel::refresh_panel(&ui, &state);
+                dado_panel::refresh_panel(&ui, &state);
                 ui.window().request_redraw();
             }
             if state.game.animation_busy()

@@ -102,6 +102,8 @@ pub enum Kind {
     Video,
     /// Prize wheel drawn from `domain::wheel` values. Painted by WN-1.
     Wheel,
+    /// El Dado 3D cube drawn from `domain::dice` values.
+    Dice,
 }
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Debug)]
 pub enum Animation {

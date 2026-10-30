@@ -18,6 +18,14 @@ pub enum Action {
     SpinWheel,
     RemoveWheelWinner,
     RestoreWheel,
+    // El Dado
+    RollDice,
+    NextQuestion,
+    RevealAnswer,
+    NextParticipant,
+    StartQuestionTimer,
+    /// +/- points for the team whose participant is up.
+    AwardCurrentTeam { points: i64 },
 }
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Control {

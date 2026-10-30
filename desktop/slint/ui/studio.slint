@@ -4,8 +4,10 @@ import { ColorField } from "color-picker.slint";
 import { TimelinePanel, AnimationRow, FramePose } from "timeline.slint";
 import { EventsPanel, CueRow } from "events.slint";
 import { WheelPanel, WheelView } from "wheel.slint";
+import { DadoPanel, DadoView } from "dado.slint";
 import { FxPanel, FxView } from "fx.slint";
 
+export struct DiceFace { name: string, code: string, swatch: color, color-text: string, rule: string, placeholder: string }
 export struct LayerRow { id: string, name: string, selected: bool, hidden: bool, locked: bool }
 export struct TeamRow { index: int, label: string, name: string, score: string, field: string, color: color, color-text: string, steps: [string], steps-text: string }
 export struct ClockRow { index: int, name: string, time: string, reset: string, running: bool, countdown: bool }
@@ -104,6 +106,9 @@ export component StudioWindow inherits Window {
     callback event-edit(string,string);
     callback event-select(string);
     in-out property <WheelView> wheel-view;
+    in-out property <DadoView> dado-view;
+    callback dado-command(string,string);
+    callback dado-edit(string,string);
     in-out property <string> wheel-entries;
     callback wheel-command(string);
     callback wheel-edit(string,string);
@@ -178,6 +183,10 @@ export component StudioWindow inherits Window {
     callback color-to-text(color,bool) -> string;
     in-out property <bool> text-layer;
     in-out property <bool> rectangle-layer;
+    in-out property <bool> dice-layer;
+    in-out property <string> dice-roll;
+    in-out property <[DiceFace]> dice-faces;
+    callback dice-edit(string,string);
     in-out property <int> text-align-index;
     in-out property <float> selection-x;
     in-out property <float> selection-y;
@@ -276,6 +285,9 @@ export component StudioWindow inherits Window {
                             Control { label: "Line"; selected: root.tool==5; invoked => { root.tool=5; } pointer-gesture(phase,x,y)=>{root.palette-drop(5,phase,x,y);} }
                             Control { label: "Pan"; selected: root.tool==7; invoked => { root.tool=7; } }
                         }
+                        HorizontalLayout { spacing: 6px;
+                            Control { label: "Dice"; selected: root.tool==8; invoked => { root.tool=8; } pointer-gesture(phase,x,y)=>{root.palette-drop(8,phase,x,y);} }
+                        }
                         CheckBox { text: "Extend selection"; checked <=> root.extend-selection; }
                         Control { label: "Image / logo…"; enabled: !root.io-busy; invoked => { root.command("import-image"); } }
                         Control { label: "Video clip…"; enabled: !root.io-busy; invoked => { root.command("import-video"); } }
@@ -356,6 +368,8 @@ export component StudioWindow inherits Window {
                             WheelPanel {view <=> root.wheel-view;entries <=> root.wheel-entries;command(c)=>{root.wheel-command(c);}edit(k,v)=>{root.wheel-edit(k,v);}}
                             Label { text: "EFFECTS AND SOUND"; }
                             FxPanel {view <=> root.fx-view;command(c,v)=>{root.fx-command(c,v);}edit(k,v)=>{root.fx-edit(k,v);}}
+                            Label { text: "EL DADO"; }
+                            DadoPanel {setup: root.setup;view <=> root.dado-view;command(c,v)=>{root.dado-command(c,v);}edit(k,v)=>{root.dado-edit(k,v);}}
                             Label { text: "LIVE TEXT"; }
                             if root.setup: VerticalLayout {spacing:6px;
                                 Field {text <=> root.new-field-name;placeholder-text:"Field name, e.g. question";accepted=>{root.live-field-command("add",self.text);}}
@@ -525,6 +539,31 @@ export component StudioWindow inherits Window {
                             ComboBox { min-width: 0px; model: root.fonts; current-index <=> root.font-index; selected(value) => { root.edit-property("font",value); } }
                             Field { text <=> root.draft-font-size; accepted => { root.edit-property("font-size",self.text); } }
                             ComboBox { model:["Left","Center","Right"];current-index <=> root.text-align-index;selected(value)=>{root.edit-property("text-align",value);} }
+                            }
+                            if root.dice-layer: VerticalLayout {
+                                spacing: 6px;
+                                Label { text: "CUBE"; }
+                                HorizontalLayout { spacing: 6px; Label { text: "Roll time (s)"; } Field { text <=> root.dice-roll; accepted => { root.dice-edit("roll",self.text); } } }
+                                Label { text: "FACES"; }
+                                for face[i] in root.dice-faces: HorizontalLayout { spacing: 6px;
+                                    Rectangle { width: 18px; height: 18px; border-radius: 3px; background: face.swatch; border-width: 1px; border-color: #3c424c; }
+                                    Label { text: face.code; width: 30px; }
+                                    Field { text: face.color-text; accepted => { root.dice-edit("color."+i,self.text); } }
+                                    Label { text: face.name; width: 66px; }
+                                }
+                                Label { text: "RULES (SPANISH · EMPTY = DEFAULT)"; }
+                                for face[i] in root.dice-faces: Field { text: face.rule; placeholder-text: face.placeholder; accepted => { root.dice-edit("rule."+i,self.text); } }
+                                Control { label: "Reset faces and rules"; invoked => { root.dice-edit("reset",""); } }
+                                Label { text: "PLACEMENT"; }
+                                HorizontalLayout { spacing: 4px;
+                                    Control { label: "Centre"; invoked => { root.dice-edit("centre",""); } }
+                                    Control { label: "Top-left"; invoked => { root.dice-edit("top-left",""); } }
+                                    Control { label: "Top-right"; invoked => { root.dice-edit("top-right",""); } }
+                                }
+                                HorizontalLayout { spacing: 4px;
+                                    Control { label: "Bottom-left"; invoked => { root.dice-edit("bottom-left",""); } }
+                                    Control { label: "Bottom-right"; invoked => { root.dice-edit("bottom-right",""); } }
+                                }
                             }
                             HorizontalLayout {spacing:6px;Control{label:"Group";invoked=>{root.command("group");}}Control{label:"Ungroup";invoked=>{root.command("ungroup");}}}
                             HorizontalLayout {spacing:6px;Control{label:"Forward";invoked=>{root.command("forward");}}Control{label:"Backward";invoked=>{root.command("backward");}}}
