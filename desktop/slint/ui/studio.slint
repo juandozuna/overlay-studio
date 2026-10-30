@@ -4,6 +4,7 @@ import { ColorField } from "color-picker.slint";
 import { TimelinePanel, AnimationRow, FramePose } from "timeline.slint";
 import { EventsPanel, CueRow } from "events.slint";
 import { WheelPanel, WheelView } from "wheel.slint";
+import { DadoPanel, DadoView } from "dado.slint";
 import { FxPanel, FxView } from "fx.slint";
 
 export struct LayerRow { id: string, name: string, selected: bool, hidden: bool, locked: bool }
@@ -104,6 +105,9 @@ export component StudioWindow inherits Window {
     callback event-edit(string,string);
     callback event-select(string);
     in-out property <WheelView> wheel-view;
+    in-out property <DadoView> dado-view;
+    callback dado-command(string,string);
+    callback dado-edit(string,string);
     in-out property <string> wheel-entries;
     callback wheel-command(string);
     callback wheel-edit(string,string);
@@ -356,6 +360,8 @@ export component StudioWindow inherits Window {
                             WheelPanel {view <=> root.wheel-view;entries <=> root.wheel-entries;command(c)=>{root.wheel-command(c);}edit(k,v)=>{root.wheel-edit(k,v);}}
                             Label { text: "EFFECTS AND SOUND"; }
                             FxPanel {view <=> root.fx-view;command(c,v)=>{root.fx-command(c,v);}edit(k,v)=>{root.fx-edit(k,v);}}
+                            Label { text: "EL DADO"; }
+                            DadoPanel {view <=> root.dado-view;command(c,v)=>{root.dado-command(c,v);}edit(k,v)=>{root.dado-edit(k,v);}}
                             Label { text: "LIVE TEXT"; }
                             if root.setup: VerticalLayout {spacing:6px;
                                 Field {text <=> root.new-field-name;placeholder-text:"Field name, e.g. question";accepted=>{root.live-field-command("add",self.text);}}
