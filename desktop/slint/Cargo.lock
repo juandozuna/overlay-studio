@@ -3881,7 +3881,7 @@ dependencies = [
 
 [[package]]
 name = "overlay-studio"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "eframe",
  "egui",
@@ -3903,7 +3903,7 @@ dependencies = [
 
 [[package]]
 name = "overlay-studio-slint"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "arboard",
  "egui",

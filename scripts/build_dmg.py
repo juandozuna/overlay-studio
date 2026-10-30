@@ -56,8 +56,8 @@ def build_app(stage: Path, name: str = "Overlay Studio") -> Path:
                 "CFBundleIdentifier": "com.overlaystudio.app",
                 "CFBundleExecutable": "overlay-studio-slint",
                 "CFBundlePackageType": "APPL",
-                "CFBundleShortVersionString": "0.3.0",
-                "CFBundleVersion": "0.3.0",
+                "CFBundleShortVersionString": "0.4.0",
+                "CFBundleVersion": "0.4.0",
                 "LSMinimumSystemVersion": "13.0",
                 "NSHighResolutionCapable": True,
                 "NSLocalNetworkUsageDescription": (

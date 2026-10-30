@@ -6,7 +6,7 @@ Design transparent scoreboards on macOS, drive scores and clocks live, pair a ph
 
 ## Download
 
-- **Installer DMG:** [Latest release (0.3.0)](https://github.com/juandozuna/overlay-studio/releases/latest) — app + instruction manual + game night guide
+- **Installer DMG:** [Latest release (0.4.0)](https://github.com/juandozuna/overlay-studio/releases/latest) — app + instruction manual + game night guide
 - **Game night how-to for volunteers (ProPresenter, with pictures):** [guide](https://juandozuna.github.io/overlay-studio/guides/game-night-propresenter.html) · [PDF](docs/guides/Game%20Night%20ProPresenter%20Guide.pdf)
 - **Website:** https://juandozuna.github.io/overlay-studio/
 - **Instruction manual (PDF):** [Overlay Studio Instruction Manual.pdf](docs/manual/output/Overlay%20Studio%20Instruction%20Manual.pdf)
