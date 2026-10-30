@@ -73,6 +73,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <li><a href="#run">Run the night</a></li>
 <li><a href="#wheel">The prize wheel</a></li>
 <li><a href="#fx">Score effects and sounds</a></li>
+<li><a href="#dado">El Dado</a></li>
 <li><a href="#phone">Control it from a phone</a></li>
 <li><a href="#fix">If something goes wrong</a></li>
 <li><a href="#checklist">Pre-show checklist</a></li>
@@ -180,7 +181,57 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <figure><img src="img/gn-effects.png" alt="Effects and sound panel with sound pickers and Test buttons" loading="lazy"><figcaption>Sound pickers and per-team overrides.</figcaption></figure>
 <div class="note warn"><b>Where the sound comes out</b>Overlay Studio plays sounds from the Mac it runs on, through that Mac's normal audio output. NDI carries the picture only. Connect that Mac's audio output to your sound system (or mixer) and test it before doors open.</div>
 
-<h2 id="phone">9. Control it from a phone</h2>
+<h2 id="dado">9. El Dado</h2>
+<p>El Dado is the dice round of the Bible competition. Each participant rolls a six-colour die, the colour decides how their question is answered, and the question appears on the audience screen. You run it from the <b>Live</b> tab, from the phone, or both.</p>
+<!-- TODO screenshots: dado-live, dado-stage, dado-design -->
+
+<h3>Load the questions</h3>
+<ol>
+<li>Start from the template <b>examples/El Dado Questions Template.csv</b>, found in the Overlay Studio project's <i>examples</i> folder. Replace the placeholder rows with your own questions. Each row has the columns <b>book, reference, question, a, b, c, d, correct</b>.</li>
+<li>Save the file as <b>CSV UTF-8</b> (in Excel or Numbers, choose that format). If a question contains a comma, the template shows how to put quotation marks around that cell.</li>
+<li>In <b>Live</b>, find the <b>El Dado</b> section in the left column, open the question bank and click <b>Import questions</b>. The app says how many questions it loaded. If the file is refused, the app tells you why and keeps the questions it already has.</li>
+</ol>
+<p class="mute">Used questions are remembered, so nobody gets the same question twice. Use the <b>book</b> filter to draw only from one book.</p>
+
+<h3>Set up the participants</h3>
+<ol>
+<li>In <b>Game setup</b>, type each team's participants under that team, one name per line, in the order they will play.</li>
+<li>The El Dado section shows whose turn it is, for example <i>Team 2 &middot; Participant 3 of 5</i>.</li>
+</ol>
+
+<h3>Take the 6 Dado design</h3>
+<p>Under <b>Designs</b> click <b>6 Dado</b>, then <b>Take design</b>. It shows the die in the middle, the rule and the question, the timer, and the five team chips along the bottom.</p>
+
+<h3>Run a turn</h3>
+<ol>
+<li><b>Roll.</b> Click <b>Roll</b> (on the desk or on the phone). The die tumbles and stops on a colour, and the rule for that colour appears.</li>
+<li><b>Next question.</b> Draws a question nobody has had yet. The question appears on screen. The A&ndash;D options appear only when the colour is AMARILLO.</li>
+<li><b>Read it aloud.</b> The correct answer and the reference show on your panel only. The audience never sees the answer.</li>
+<li><b>Start 30 s</b> when you finish reading. The clock counts down on screen.</li>
+<li><b>Reveal answer</b> when the participant has answered. Your panel shows the correct answer.</li>
+<li><b>+10</b> to the current team if the answer was right. For a BLUE or ORANGE turn the points still go to the participant's team, even though someone else answered.</li>
+<li><b>Next participant.</b> Moves to the next name, and the die and question clear from the screen.</li>
+</ol>
+<p>If the clock reaches zero before anyone answers, the screen shows <b>PREGUNTA ANULADA</b> (question annulled). Move on to the next participant.</p>
+
+<h3>The six colours</h3>
+<table><tr><th>Colour</th><th>Rule on screen</th><th>What to do</th></tr>
+<tr><td><b>ROJO</b></td><td>ROJO &ndash; Respuesta directa</td><td>The participant answers directly. No options.</td></tr>
+<tr><td><b>AMARILLO</b></td><td>AMARILLO &ndash; 4 opciones</td><td>The participant chooses from options A&ndash;D on screen.</td></tr>
+<tr><td><b>AZUL</b></td><td>AZUL &ndash; Alguien del p&uacute;blico</td><td>Pick someone from the audience to answer. Points go to the participant's team.</td></tr>
+<tr><td><b>NARANJA</b></td><td>NARANJA &ndash; Alguien de tu equipo</td><td>Pick a teammate to answer for the participant. Points go to the team.</td></tr>
+<tr><td><b>MORADO</b></td><td>MORADO &ndash; Con la Biblia</td><td>The participant may look up the answer in the Bible. The 30 seconds keep running.</td></tr>
+<tr><td><b>VERDE</b></td><td>VERDE &ndash; PREGUNTA EXTRA</td><td>The app only shows the rule. Handle the extra question yourself.</td></tr></table>
+
+<h3>Place the dice on any layout</h3>
+<ol>
+<li>Click the <b>Design</b> tab and open the design you want to change.</li>
+<li>Add a layer with the <b>Dice</b> tool. It appears in the middle of the canvas and works like any other layer: drag it, resize it and set its opacity.</li>
+<li>Pick the face colours and rule texts in the Dice inspector if you want to change them. One Dice layer per design is enough.</li>
+</ol>
+<p class="mute">If the design you are on has no Dice layer, the El Dado section tells you, with a link to take <b>6 Dado</b>.</p>
+
+<h2 id="phone">10. Control it from a phone</h2>
 <ol>
 <li>Click the <b>Remote</b> tab. The default <b>Game controls</b> layout already has score buttons for all five teams, plus <b>Show&hellip;</b> for each layout, <b>Spin wheel</b>, <b>Remove winner</b> and <b>Restore wheel</b>.</li>
 <li>Pick the Mac's network address in <b>Connect a device</b> (use the one on your Wi-Fi) and click <b>Start remote control</b>.</li>
@@ -189,7 +240,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <figure><img src="img/gn-remote.png" alt="Remote workspace with the Game controls button layout and Connect a device panel" loading="lazy"><figcaption>The Remote tab: the button layout is what appears on the phone.</figcaption></figure>
 <p class="mute">Venue Wi-Fi that blocks devices from talking to each other (client isolation) will stop pairing. A small travel router for the media team solves it.</p>
 
-<h2 id="fix">10. If something goes wrong</h2>
+<h2 id="fix">11. If something goes wrong</h2>
 <table><tr><th>Problem</th><th>Try this</th></tr>
 <tr><td>ProPresenter does not list the NDI source</td><td>Check the output says it is sending. Same Mac: enable <b>Show Sources running on the local machine</b> under NDI Input Discovery. Separate Macs: same network and subnet, wired if you can. Reopen the Device dropdown.</td></tr>
 <tr><td>Scoreboard shows in ProPresenter but is hidden behind slides</td><td>See the layering note in section 5: use a Video Input element on the slide, or slides without a background.</td></tr>
@@ -200,7 +251,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <tr><td>You quit by accident</td><td>Reopen the app. It offers to <b>recover</b> unsaved work.</td></tr></table>
 <p class="mute">Sources: Renewed Vision &mdash; <a href="https://support.renewedvision.com/hc/en-us/articles/360053482973-Setting-Up-A-Video-Input-in-ProPresenter">Setting Up A Video Input in ProPresenter</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/32161719466643-NDI-Input-Discovery">NDI Input Discovery</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/4403014667283-NDI-Troubleshooting">NDI Troubleshooting</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/13634000690323-ProPresenter-Output-Layers">ProPresenter Output Layers</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/18438961234835-Premultiplied-and-Straight-Keying">Premultiplied and Straight Keying</a>.</p>
 
-<h2 id="checklist">11. Pre-show checklist</h2>
+<h2 id="checklist">12. Pre-show checklist</h2>
 <p>Print this page (<kbd>Cmd</kbd>+<kbd>P</kbd>) or keep it on a phone.</p>
 <ul class="check">
 <li>Team names, colors and score steps set; project saved.</li>
@@ -211,6 +262,11 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <li>Press <b>+1</b> for a team: the tiles flash green and the sound plays through the room speakers.</li>
 <li>Wheel entries typed in; one test spin, then <b>Restore original list</b>.</li>
 <li>Phone paired; <b>Show&hellip;</b> and <b>Spin wheel</b> buttons work.</li>
+<li>El Dado: question bank imported (the count shows in the panel) and the placeholder rows replaced.</li>
+<li>Participants typed in for each team, in playing order.</li>
+<li>6 Dado design taken; one test roll and one test question on screen, with no answer showing for the audience.</li>
+<li>Clock shows the 30 s countdown and <b>PREGUNTA ANULADA</b> on the audience screen.</li>
+<li>Test questions used during rehearsal? Press <b>Reset used questions</b> before the real game.</li>
 <li>Scores reset to 0 and clock reset before doors open.</li>
 <li>A second person knows how to <b>Hide</b> the scoreboard in an emergency.</li>
 </ul>
