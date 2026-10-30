@@ -3,6 +3,9 @@
 
 const REQUIRED: [&str; 8] = ["book", "reference", "question", "a", "b", "c", "d", "correct"];
 const MAX_ERRORS: usize = 10;
+/// Import limits, enforced by the importer (the bank lives in project values and is autosaved and sent around).
+pub const MAX_BYTES: usize = 1 << 20;
+pub const MAX_ROWS: usize = 5000;
 const SEMICOLON_HELP: &str = "This file uses semicolons. Save as CSV UTF-8 with commas.";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +70,9 @@ pub fn parse(csv: &str) -> Result<Bank, String> {
     let mut errors: Vec<String> = Vec::new();
     let mut error_count = 0;
     for (line, fields) in &records[1..] {
+        if fields.iter().all(|f| f.trim().is_empty()) {
+            continue; // Excel pads exports with `,,,,,,,` rows
+        }
         let mut problems = Vec::new();
         if fields.len() < names.len() {
             problems.push(format!("expected {} columns but found {}", names.len(), fields.len()));
@@ -216,6 +222,12 @@ mod tests {
         assert_eq!(bank.rows[0].answer, "D · 4");
         assert_eq!(decode(b"\xEF\xBB\xBFabc").unwrap(), "abc");
         assert!(decode(&[0xff, 0xfe, 0x41]).unwrap_err().contains("UTF-8"));
+    }
+    #[test]
+    fn skips_rows_that_are_only_separators() {
+        let bank = parse(&format!("{HEAD}x,r,q,1,2,3,4,A\n,,,,,,,\n , ,,,,,,  \n,,,,,,,,\n")).unwrap();
+        assert_eq!(bank.rows.len(), 1);
+        assert!(parse(&format!("{HEAD},,,,,,,\n")).unwrap_err().contains("no questions"));
     }
     #[test]
     fn semicolon_files_get_a_clear_error() {
