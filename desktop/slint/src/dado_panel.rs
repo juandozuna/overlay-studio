@@ -19,9 +19,9 @@ use std::{
 pub struct Session {
     /// Team shown in the participants editor.
     team: usize,
-    /// A score was awarded for the participant who is up (desk buttons only).
-    awarded: bool,
+    /// Last CSV import failure (full multi-line text) and the document it belongs to.
     bank_error: String,
+    bank_error_generation: u64,
     roll_seen: RefCell<Option<(u64, Instant)>>,
 }
 
@@ -40,15 +40,21 @@ struct Facts {
     bank_loaded: bool,
     bank_total: usize,
     bank_used: usize,
-    bank_error: String,
+    /// Questions a draw can still pick (honours the book filter and the yellow rule).
+    bank_remaining: usize,
+    bank_filter: String,
     team_name: String,
 }
 impl Facts {
     fn exhausted(&self) -> bool {
         self.bank_loaded && self.bank_used >= self.bank_total
     }
+    /// Nothing left to draw for the current filter, though the bank may still have unused rows.
+    fn nothing_to_draw(&self) -> bool {
+        self.bank_loaded && self.bank_remaining == 0
+    }
     fn can_next_question(&self) -> bool {
-        self.has_result && !self.rolling && !self.has_question && self.bank_loaded && !self.exhausted()
+        self.has_result && !self.rolling && !self.has_question && self.bank_loaded && !self.nothing_to_draw()
     }
     /// 0 roll, 1 question, 2 timer, 3 reveal, 4 score, 5 next participant.
     fn next_step(&self) -> i32 {
@@ -69,10 +75,8 @@ impl Facts {
     /// One line above the stepper and its kind: 0 info, 1 warning, 2 error, 3 done.
     fn status_line(&self) -> (String, i32) {
         if !self.has_participants {
-            return ("No participants yet. Add them in Game setup.".into(), 1);
-        }
-        if !self.bank_error.is_empty() {
-            return (self.bank_error.clone(), 2);
+            // The UP NOW step already says so; one message is enough.
+            return (String::new(), 0);
         }
         if self.rolling {
             return ("Rolling…".into(), 0);
@@ -86,6 +90,14 @@ impl Facts {
         if !self.has_question && self.exhausted() {
             return (format!("All {} questions used.", self.bank_total), 1);
         }
+        if !self.has_question && self.nothing_to_draw() {
+            let message = if self.bank_used == 0 {
+                format!("No questions available for {}. Pick another book.", self.filter_name())
+            } else {
+                format!("No unused questions for {}. Pick another book or Reset used questions.", self.filter_name())
+            };
+            return (message, 1);
+        }
         if self.timer_state == 2 {
             return ("Time is up · question annulled".into(), 2);
         }
@@ -93,6 +105,9 @@ impl Facts {
             return (format!("+10 awarded to {}", self.team_name), 3);
         }
         (String::new(), 0)
+    }
+    fn filter_name(&self) -> &str {
+        if self.bank_filter.is_empty() { "this roll" } else { &self.bank_filter }
     }
     /// Dialog (title, question) to show before the command runs.
     fn confirm(&self, command: &str) -> Option<(&'static str, &'static str)> {
@@ -162,6 +177,23 @@ fn strings(items: impl IntoIterator<Item = String>) -> Vec<SharedString> {
     items.into_iter().map(Into::into).collect()
 }
 
+impl Session {
+    /// The import error of the open document; a loaded project does not inherit the previous one's.
+    fn bank_error(&self, generation: u64) -> &str {
+        if self.bank_error_generation == generation { &self.bank_error } else { "" }
+    }
+}
+/// The status bar is one line: the headline of a multi-line import error, with the problem count.
+fn error_headline(error: &str) -> String {
+    let mut lines = error.lines().map(str::trim).filter(|l| !l.is_empty());
+    let head = lines.next().unwrap_or_default().trim_end_matches(':');
+    match lines.count() {
+        0 => head.to_string(),
+        1 => format!("{head}: 1 problem, see the Bank section of EL DADO"),
+        n => format!("{head}: {n} problems, see the Bank section of EL DADO"),
+    }
+}
+
 fn question_clock(s: &Desktop) -> Option<usize> {
     s.document.project.clocks.iter().position(|c| c.value_key == keys::QUESTION_CLOCK_KEY)
 }
@@ -185,11 +217,12 @@ fn facts(s: &Desktop, cfg: &DiceConfig, rolling: bool) -> Facts {
         revealed: get(keys::REVEALED) == "1",
         timer_state,
         paused,
-        awarded: s.dado.awarded,
+        awarded: dice::awarded(&p.values),
         bank_loaded: bank.loaded,
         bank_total: bank.total,
         bank_used: bank.used,
-        bank_error: s.dado.bank_error.clone(),
+        bank_remaining: bank.remaining,
+        bank_filter: bank.filter,
         team_name: turn.team_name,
     }
 }
@@ -243,7 +276,7 @@ fn view(s: &Desktop, old: Option<&DadoView>) -> DadoView {
         result_color: face.map_or(slint::Color::default(), |face| rgb(cfg.colors[face.index()])),
         bank_loaded: bank.loaded,
         bank_used: if bank.loaded { format!("used {}/{}", bank.used, bank.total) } else { "no bank".into() }.into(),
-        bank_error: s.dado.bank_error.clone().into(),
+        bank_error: s.dado.bank_error(s.document.generation).into(),
         book_index: book_index(&books, &bank.filter),
         books: model(old.map(|o| o.books.clone()), strings(books)),
         question_text: get(keys::QUESTION_TEXT).into(),
@@ -275,8 +308,10 @@ fn view(s: &Desktop, old: Option<&DadoView>) -> DadoView {
         .into(),
         team_color: team.map_or(slint::Color::default(), |t| rgb(t.color)),
         has_question: f.has_question,
-        bank_exhausted: f.exhausted(),
-        bank_summary: if bank.loaded {
+        bank_exhausted: f.nothing_to_draw() && bank.used > 0,
+        bank_summary: if !s.dado.bank_error(s.document.generation).is_empty() {
+            "BANK · last import failed".into()
+        } else if bank.loaded {
             format!("BANK · {} loaded · {} used", bank.total, bank.used)
         } else {
             "BANK · not loaded".into()
@@ -313,31 +348,35 @@ fn edit(s: &mut Desktop, key: &str, value: &str) -> Result<(), String> {
             s.dado.team = index;
             return Ok(());
         }
-        "participants" => dice::set_participants(&mut s.document.project, s.dado.team, value),
+        "participants" => {
+            // The editor shows the clamped team (see `view`), so the edit goes to that one too.
+            let last = s.document.project.teams.len().checked_sub(1).ok_or("Add a team before adding participants")?;
+            dice::set_participants(&mut s.document.project, s.dado.team.min(last), value);
+        }
         _ => return Err("Unknown El Dado property".into()),
     }
     s.document.mark_external_edit();
     Ok(())
 }
+fn reset_timer(s: &mut Desktop) -> Result<(), String> {
+    let clock = question_clock(s).ok_or("The question timer does not exist yet")?;
+    s.execute(Action::ClockResetAt { clock })?;
+    // The clock reset leaves PREGUNTA ANULADA up; clearing it re-arms Start. A project that never
+    // rolled may not have the key yet, and `SetValue` refuses missing keys.
+    s.document.project.values.insert(keys::STATUS.into(), String::new());
+    s.document.mark_external_edit();
+    Ok(())
+}
 fn command(s: &mut Desktop, command: &str, value: &str) -> Result<(), String> {
     match command {
-        "roll" => {
-            s.execute(Action::RollDice)?;
-            s.dado.awarded = false;
-            Ok(())
-        }
+        "roll" => s.execute(Action::RollDice),
         "next_question" | "skip_question" => s.execute(Action::NextQuestion),
         "start_timer" => s.execute(Action::StartQuestionTimer),
         "pause_timer" => {
             let clock = question_clock(s).ok_or("The question timer does not exist yet")?;
             s.execute(Action::ClockToggleAt { clock })
         }
-        "reset_timer" => {
-            let clock = question_clock(s).ok_or("The question timer does not exist yet")?;
-            s.execute(Action::ClockResetAt { clock })?;
-            // The clock reset leaves PREGUNTA ANULADA up; clearing it re-arms Start.
-            s.execute(Action::SetValue { field: keys::STATUS.into(), value: String::new() })
-        }
+        "reset_timer" => reset_timer(s),
         "reveal" => s.execute(Action::RevealAnswer), // toggles: Reveal / Hide
         "award" => {
             let points = match value {
@@ -345,19 +384,12 @@ fn command(s: &mut Desktop, command: &str, value: &str) -> Result<(), String> {
                 "-10" => -keys::POINTS,
                 _ => return Err("Unknown score step".into()),
             };
-            s.execute(Action::AwardCurrentTeam { points })?;
-            s.dado.awarded |= points > 0;
-            Ok(())
+            s.execute(Action::AwardCurrentTeam { points })
         }
-        "next_participant" => {
-            s.execute(Action::NextParticipant)?;
-            s.dado.awarded = false;
-            Ok(())
-        }
+        "next_participant" => s.execute(Action::NextParticipant),
         "back_participant" => {
             dice::previous_participant(&mut s.document.project).map_err(|e| e.to_string())?;
             s.document.mark_external_edit();
-            s.dado.awarded = false;
             Ok(())
         }
         "reset_used" => {
@@ -368,6 +400,13 @@ fn command(s: &mut Desktop, command: &str, value: &str) -> Result<(), String> {
         _ => Err("Unknown El Dado command".into()),
     }
 }
+/// Keeps the full text for the Bank section and returns the one line the status bar can show.
+fn set_bank_error(s: &mut Desktop, error: String) -> String {
+    let headline = error_headline(&error);
+    s.dado.bank_error = error;
+    s.dado.bank_error_generation = s.document.generation;
+    headline
+}
 fn apply_import(s: &mut Desktop, csv: &str) -> Result<String, String> {
     match dice::import_bank(&mut s.document.project.values, csv) {
         Ok(summary) => {
@@ -375,11 +414,13 @@ fn apply_import(s: &mut Desktop, csv: &str) -> Result<String, String> {
             s.document.mark_external_edit();
             Ok(import_message(&summary))
         }
-        Err(error) => {
-            s.dado.bank_error = error.clone();
-            Err(error)
-        }
+        Err(error) => Err(error),
     }
+}
+/// Reads the picked file itself: rfd's `read()` unwraps I/O errors and would panic the app.
+fn read_csv(file: &rfd::FileHandle) -> Result<String, String> {
+    let bytes = std::fs::read(file.path()).map_err(|e| format!("Could not read {}: {e}", file.file_name()))?;
+    decode_csv(bytes)
 }
 
 fn current_facts(s: &Desktop) -> Facts {
@@ -404,8 +445,17 @@ fn finish(ui: &StudioWindow, state: &Rc<RefCell<Desktop>>) {
 }
 fn run(ui: &StudioWindow, state: &Rc<RefCell<Desktop>>, name: &str, value: &str) {
     let result = command(&mut state.borrow_mut(), name, value);
+    if result.is_ok() {
+        state.borrow_mut().dado.bank_error.clear();
+    }
     report(ui, result);
     finish(ui, state);
+}
+/// Runs a future on the UI thread; a refused spawn is shown instead of dropping the command.
+fn spawn(ui: &StudioWindow, future: impl std::future::Future<Output = ()> + 'static) {
+    if let Err(error) = slint::spawn_local(future) {
+        report(ui, Err(format!("Could not open the dialog: {error}")));
+    }
 }
 async fn import_bank(weak: slint::Weak<StudioWindow>, state: Rc<RefCell<Desktop>>) {
     let confirm = current_facts(&state.borrow()).confirm("import_bank");
@@ -415,9 +465,12 @@ async fn import_bank(weak: slint::Weak<StudioWindow>, state: Rc<RefCell<Desktop>
         return;
     }
     let Some(file) = rfd::AsyncFileDialog::new().add_filter("Question bank (CSV)", &["csv"]).pick_file().await else {
+        if let Some(ui) = weak.upgrade() {
+            ui.set_status("No file selected".into());
+        }
         return;
     };
-    let result = decode_csv(file.read().await).and_then(|csv| apply_import(&mut state.borrow_mut(), &csv));
+    let result = read_csv(&file).and_then(|csv| apply_import(&mut state.borrow_mut(), &csv));
     let Some(ui) = weak.upgrade() else {
         return;
     };
@@ -427,8 +480,8 @@ async fn import_bank(weak: slint::Weak<StudioWindow>, state: Rc<RefCell<Desktop>
             ui.set_status(message.into());
         }
         Err(error) => {
-            state.borrow_mut().dado.bank_error = error.clone();
-            report(&ui, Err(error));
+            let headline = set_bank_error(&mut state.borrow_mut(), error);
+            report(&ui, Err(headline));
         }
     }
     finish(&ui, &state);
@@ -458,7 +511,7 @@ pub fn connect(ui: &StudioWindow, state: Rc<RefCell<Desktop>>) {
             return;
         };
         if name.as_str() == "import_bank" {
-            let _ = slint::spawn_local(import_bank(weak.clone(), state.clone()));
+            spawn(&ui, import_bank(weak.clone(), state.clone()));
             return;
         }
         let confirm = current_facts(&state.borrow()).confirm(&name);
@@ -467,12 +520,20 @@ pub fn connect(ui: &StudioWindow, state: Rc<RefCell<Desktop>>) {
             return;
         };
         let (weak, state) = (weak.clone(), state.clone());
-        let _ = slint::spawn_local(async move {
-            if ask(title, text).await
-                && let Some(ui) = weak.upgrade()
-            {
-                run(&ui, &state, &name, &value);
+        spawn(&ui, async move {
+            if !ask(title, text).await {
+                return;
             }
+            let Some(ui) = weak.upgrade() else {
+                return;
+            };
+            // A phone action may have moved the turn on while the dialog was open.
+            if current_facts(&state.borrow()).confirm(&name).is_none() {
+                report(&ui, Err("The turn changed while the dialog was open. Check the panel and try again.".into()));
+                finish(&ui, &state);
+                return;
+            }
+            run(&ui, &state, &name, &value);
         });
     });
 }
@@ -482,7 +543,7 @@ mod tests {
     use super::*;
 
     fn turn() -> Facts {
-        Facts { has_participants: true, bank_loaded: true, bank_total: 8, team_name: "Equipo 2".into(), ..Facts::default() }
+        Facts { has_participants: true, bank_loaded: true, bank_total: 8, bank_remaining: 8, team_name: "Equipo 2".into(), ..Facts::default() }
     }
 
     #[test]
@@ -522,22 +583,29 @@ mod tests {
         assert!(!Facts { has_result: false, ..rolled.clone() }.can_next_question());
         assert!(!Facts { has_question: true, ..rolled.clone() }.can_next_question());
         assert!(!Facts { bank_loaded: false, ..rolled.clone() }.can_next_question());
-        assert!(!Facts { bank_used: 8, ..rolled.clone() }.can_next_question());
-        assert!(Facts { bank_used: 8, ..rolled }.exhausted());
+        assert!(!Facts { bank_used: 8, bank_remaining: 0, ..rolled.clone() }.can_next_question());
+        assert!(Facts { bank_used: 8, bank_remaining: 0, ..rolled.clone() }.exhausted());
+        // A book filter can leave nothing to draw while the bank still has unused rows.
+        let filtered = Facts { bank_used: 3, bank_remaining: 0, bank_filter: "2 Reyes".into(), ..rolled };
+        assert!(!filtered.can_next_question());
+        assert!(!filtered.exhausted());
     }
     #[test]
     fn status_line_says_what_is_blocking() {
-        assert_eq!(Facts::default().status_line().1, 1);
+        assert_eq!(Facts::default().status_line(), (String::new(), 0));
         assert_eq!(turn().status_line().0, "Ready · roll when the next participant is up");
         let rolled = Facts { has_result: true, ..turn() };
         assert_eq!(Facts { bank_loaded: false, ..rolled.clone() }.status_line().0, "No questions loaded. Import a CSV to draw questions.");
-        assert_eq!(Facts { bank_used: 8, ..rolled.clone() }.status_line().0, "All 8 questions used.");
+        assert_eq!(Facts { bank_used: 8, bank_remaining: 0, ..rolled.clone() }.status_line().0, "All 8 questions used.");
+        let filtered = Facts { bank_used: 3, bank_remaining: 0, bank_filter: "2 Reyes".into(), ..rolled.clone() };
+        assert_eq!(
+            filtered.status_line(),
+            ("No unused questions for 2 Reyes. Pick another book or Reset used questions.".into(), 1)
+        );
         let annulled = Facts { has_question: true, timer_state: 2, ..rolled.clone() };
         assert_eq!(annulled.status_line(), ("Time is up · question annulled".into(), 2));
         let awarded = Facts { has_question: true, awarded: true, ..rolled.clone() };
         assert_eq!(awarded.status_line(), ("+10 awarded to Equipo 2".into(), 3));
-        let broken = Facts { bank_error: "Could not import: row 14 is missing a correct answer.".into(), ..rolled };
-        assert_eq!(broken.status_line().1, 2);
     }
     #[test]
     fn dangerous_commands_ask_first() {
@@ -599,6 +667,38 @@ mod tests {
         assert_eq!(import_message(&BankSummary { rows: 1, per_book: vec![] }), "Imported 1 question.");
         assert_eq!(decode_csv(b"book,reference".to_vec()).as_deref(), Ok("book,reference"));
         assert!(decode_csv(vec![0xff, 0xfe, 0x41]).unwrap_err().contains("not UTF-8"));
+    }
+    #[test]
+    fn a_multi_line_import_error_is_one_line_in_the_status_bar() {
+        let error = "Could not import the questions:\nLine 3: missing answer\nLine 9: missing question";
+        assert_eq!(error_headline(error), "Could not import the questions: 2 problems, see the Bank section of EL DADO");
+        assert!(error_headline("Could not read x.csv: gone").ends_with("gone"));
+        assert!(error_headline("Could not import:\nLine 3: bad").contains("1 problem,"));
+    }
+    #[test]
+    fn an_import_error_belongs_to_its_document() {
+        let session = Session { bank_error: "bad".into(), bank_error_generation: 2, ..Session::default() };
+        assert_eq!(session.bank_error(2), "bad");
+        assert_eq!(session.bank_error(3), "");
+    }
+    #[test]
+    fn participants_edits_use_the_team_the_editor_shows() {
+        let mut s = Desktop::two_team_demo();
+        s.dado.team = 99;
+        edit(&mut s, "participants", "Ana\nLuis").unwrap();
+        let last = s.document.project.teams.len() - 1;
+        assert_eq!(dice::participants_text(&s.document.project, last), "Ana\nLuis");
+        s.document.project.teams.clear();
+        assert!(edit(&mut s, "participants", "Ana").is_err());
+    }
+    #[test]
+    fn resetting_the_timer_works_before_any_roll_seeded_the_status() {
+        let mut s = Desktop::two_team_demo();
+        s.document.project.values.remove(keys::STATUS);
+        if question_clock(&s).is_some() {
+            reset_timer(&mut s).unwrap();
+            assert_eq!(s.document.project.values[keys::STATUS], "");
+        }
     }
     #[test]
     fn the_team_edit_only_accepts_existing_teams() {
