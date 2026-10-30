@@ -1,6 +1,7 @@
 mod ai_panel;
 mod animation_panel;
 mod audio;
+mod dado_panel;
 mod dice_inspector;
 #[cfg(test)]
 mod configuration_tests;
@@ -39,6 +40,7 @@ struct Desktop {
     animation: animation_panel::Session,
     events: events_panel::Session,
     wheel: wheel_panel::Session,
+    dado: dado_panel::Session,
     fx: fx_panel::Session,
     ai: ai_panel::Session,
     recovery: recovery::Manager,
@@ -154,6 +156,7 @@ impl Desktop {
             animation: animation_panel::Session::default(),
             events: events_panel::Session::default(),
             wheel: wheel_panel::Session::default(),
+            dado: dado_panel::Session::default(),
             fx: fx_panel::Session::default(),
             ai: ai_panel::Session::default(),
             recovery: recovery::Manager::new(),
@@ -214,6 +217,7 @@ fn refresh(ui: &StudioWindow, state: &Desktop) {
     animation_panel::refresh_panel(ui, state);
     events_panel::refresh_panel(ui, state);
     wheel_panel::refresh_panel(ui, state);
+    dado_panel::refresh_panel(ui, state);
     fx_panel::refresh_panel(ui, state);
     dice_inspector::refresh_panel(ui, state);
     let s = &state.document;
@@ -454,6 +458,7 @@ fn report(ui: &StudioWindow, result: Result<(), String>) {
 }
 fn refresh_runtime(ui: &StudioWindow, state: &Desktop) {
     wheel_panel::refresh_panel(ui, state);
+    dado_panel::refresh_panel(ui, state);
     fx_panel::refresh_panel(ui, state);
     live_values::refresh_panel(ui, state);
     ui.set_dirty(state.document.dirty);
@@ -1392,6 +1397,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     animation_panel::connect(&ui, state.clone());
     events_panel::connect(&ui, state.clone());
     wheel_panel::connect(&ui, state.clone());
+    dado_panel::connect(&ui, state.clone());
     fx_panel::connect(&ui, state.clone());
     dice_inspector::connect(&ui, state.clone());
     live_values::connect(&ui, state.clone());
@@ -1447,6 +1453,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             if revealed {
                 wheel_panel::refresh_panel(&ui, &state);
+                dado_panel::refresh_panel(&ui, &state);
                 ui.window().request_redraw();
             }
             if state.game.animation_busy()
