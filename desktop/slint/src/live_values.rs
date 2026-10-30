@@ -3,8 +3,12 @@ use overlay_studio::{domain::controls::Action, model::Project};
 use slint::{ComponentHandle, Model};
 use std::{cell::RefCell, rc::Rc};
 
+/// Keys owned by the dice and question-bank logic; the El Dado panel and the Dice layer edit them.
+const MANAGED_PREFIXES: [&str; 3] = ["dado.", "dice.", "question."];
+
 fn custom(p: &Project, key: &str) -> bool {
-    !p.teams
+    !MANAGED_PREFIXES.iter().any(|prefix| key.starts_with(prefix))
+        && !p.teams
         .iter()
         .any(|t| t.score_key == key || t.name_key == key)
         && !p.clocks.iter().any(|c| c.value_key == key)
@@ -100,5 +104,14 @@ mod tests {
         assert!(apply(&mut s, "clock", "bad time").is_err());
         assert!(apply(&mut s, "missing", "text").is_err());
         assert!(apply(&mut s, "round", &"x".repeat(4097)).is_err());
+    }
+    #[test]
+    fn dice_and_question_keys_are_not_user_fields() {
+        let s = Desktop::two_team_demo();
+        let p = &s.document.project;
+        for key in ["dado.bank", "dado.host.answer", "dice.face", "question.text"] {
+            assert!(!custom(p, key), "{key}");
+        }
+        assert!(custom(p, "event"));
     }
 }
