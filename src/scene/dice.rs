@@ -2,14 +2,14 @@
 use super::wheel;
 use crate::domain::dice::{DiceConfig, Face};
 use egui::{
-    Color32, FontFamily, FontId, Galley, Pos2, Shape, Stroke, Vec2,
+    Color32, FontFamily, FontId, Galley, Pos2, Rect, Shape, Stroke, Vec2,
     emath::Rot2,
-    epaint::{Mesh, Vertex},
+    epaint::text::PlacedRow,
 };
 use std::{
     collections::BTreeMap,
     f32::consts::{FRAC_PI_2, PI, TAU},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -20,6 +20,12 @@ const REST_PITCH: f32 = -12. * PI / 180.;
 const REST_YAW: f32 = 18. * PI / 180.;
 /// Direction towards the light, in view space (upper left, in front).
 const LIGHT: [f32; 3] = [-0.395, -0.543, 0.741];
+/// Pixels per cube edge, as a share of the layer's shorter side. A cube corner (radius 0.866 edges) projects at
+/// most 0.9 edges from the centre at any tumble angle, so the cube, tilted up to its worst case, stays inside the box.
+const SCALE: f32 = 0.47;
+/// Text sizes as a share of the face edge.
+const CODE_TEXT: f32 = 0.22;
+const NAME_TEXT: f32 = 0.11;
 
 /// Unit quaternion (x, y, z, w). Axes follow the screen: x right, y down, z towards the viewer.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -277,17 +283,21 @@ fn polygon_area(p: &[Pos2; 4]) -> f32 {
     (0..4).map(|i| p[i].x * p[(i + 1) % 4].y - p[(i + 1) % 4].x * p[i].y).sum::<f32>().abs() / 2.
 }
 
-/// Lays `galley` flat on a face: its centre goes to face coordinates `at` (cube edges) and its glyph
-/// vertices follow the face through `map`, so the text is foreshortened with the face.
-fn add_text(mesh: &mut Mesh, galley: &Galley, uv_norm: Vec2, unit: f32, at: (f32, f32), map: &impl Fn(f32, f32) -> Pos2) {
+/// Lays `galley` flat on a face: its centre goes to face coordinates `at` (cube edges) and its glyph vertices
+/// follow the face through `map`, so the text is foreshortened with the face. Vertices keep the galley's own uv
+/// (texels) and colour: egui normalises the uv against the font atlas when it tessellates, after the whole frame is laid out.
+fn add_text(rows: &mut Vec<PlacedRow>, galley: &Galley, unit: f32, at: (f32, f32), map: &impl Fn(f32, f32) -> Pos2) {
     let half = galley.size() / 2.;
-    for row in &galley.rows {
-        let base = mesh.vertices.len() as u32;
-        for v in &row.visuals.mesh.vertices {
-            let p = row.pos.to_vec2() + v.pos.to_vec2() - half;
-            mesh.vertices.push(Vertex { pos: map(at.0 + p.x / unit, at.1 + p.y / unit), uv: (v.uv.to_vec2() * uv_norm).to_pos2(), color: v.color });
+    for placed in &galley.rows {
+        let mut row = (*placed.row).clone();
+        let mut bounds = Rect::NOTHING;
+        for v in &mut row.visuals.mesh.vertices {
+            let p = placed.pos.to_vec2() + v.pos.to_vec2() - half;
+            v.pos = map(at.0 + p.x / unit, at.1 + p.y / unit);
+            bounds.extend_with(v.pos);
         }
-        mesh.indices.extend(row.visuals.mesh.indices.iter().map(|i| i + base));
+        row.visuals.mesh_bounds = bounds;
+        rows.push(PlacedRow { pos: Pos2::ZERO, row: Arc::new(row), ends_with_newline: false });
     }
 }
 
@@ -311,10 +321,10 @@ pub fn paint(
         _ => idle_orientation(),
     };
     clock.remember(q);
-    let scale = side * 0.36;
+    let scale = side * SCALE;
     let view = View {
         pivot: rect.center(),
-        c: rect.center() - Vec2::new(0., side * 0.06),
+        c: rect.center() - Vec2::new(0., scale * 0.08),
         scale,
         rot: Rot2::from_angle(rotation),
         alpha: opacity.clamp(0., 1.),
@@ -338,27 +348,31 @@ pub fn paint(
         let inset: Vec<Pos2> = f.pts.iter().map(|p| *p + (mid - *p) * 0.09).collect();
         painter.add(Shape::closed_line(inset, Stroke::new((edge * 0.5).max(1.), view.col(mix(body, [255; 3], 0.35), 0.55))));
     }
-    let code_px = scale * 0.30;
-    let name_px = scale * 0.095;
+    let code_px = scale * CODE_TEXT;
+    let name_px = scale * NAME_TEXT;
     if name_px < 4. {
         return;
     }
-    let uv_norm = {
-        let [w, h] = painter.ctx().fonts(|f| f.font_image_size());
-        Vec2::new(1. / w.max(1) as f32, 1. / h.max(1) as f32)
-    };
-    let mut text = Mesh::default();
+    let (mut rows, mut template) = (Vec::new(), None);
     for f in &quads[..n] {
         let face = Face::ALL[f.face];
         let color = if is_light(cfg.colors[f.face]) { ink } else { [250, 250, 252] };
         let map = |a: f32, b: f32| view.point(madd(madd(f.centre, f.u, a), f.v, b));
         let code = painter.layout_no_wrap(face.code().into(), FontId::new(code_px, FontFamily::Proportional), view.col(color, 1.));
-        add_text(&mut text, &code, uv_norm, scale, (0., -0.04), &map);
-        let name = painter.layout_no_wrap(face.name().into(), FontId::new(name_px, FontFamily::Proportional), view.col(color, 0.8));
-        add_text(&mut text, &name, uv_norm, scale, (0., 0.2), &map);
+        add_text(&mut rows, &code, scale, (0., -0.08), &map);
+        let name = painter.layout_no_wrap(face.name().into(), FontId::new(name_px, FontFamily::Proportional), view.col(color, 0.92));
+        add_text(&mut rows, &name, scale, (0., 0.14), &map);
+        template.get_or_insert(code);
     }
-    if !text.is_empty() {
-        painter.add(Shape::mesh(text));
+    // one galley whose rows are the transformed glyph meshes, so egui tessellates the text like any other
+    if let Some(template) = template {
+        let mut galley = Galley::clone(&template);
+        galley.mesh_bounds = rows.iter().fold(Rect::NOTHING, |b, r| b.union(r.row.visuals.mesh_bounds));
+        galley.rect = galley.mesh_bounds;
+        galley.num_vertices = rows.iter().map(|r| r.row.visuals.mesh.vertices.len()).sum();
+        galley.num_indices = rows.iter().map(|r| r.row.visuals.mesh.indices.len()).sum();
+        galley.rows = rows;
+        painter.add(Shape::galley(Pos2::ZERO, Arc::new(galley), Color32::WHITE));
     }
 }
 
@@ -451,5 +465,29 @@ mod tests {
         assert!(a.busy() && b.busy());
         let t = 0.3;
         assert_eq!(orientation_at(fa, cfg.roll_id, 4, t), orientation_at(fb, cfg.roll_id, 4, t));
+    }
+    #[test]
+    fn cube_and_shadow_stay_inside_the_box_at_every_orientation() {
+        let side = 520.;
+        let rect = Rect::from_min_size(Pos2::new(100., 50.), Vec2::splat(side));
+        let scale = side * SCALE;
+        let c = rect.center() - Vec2::new(0., scale * 0.08);
+        let mut worst = 0f32;
+        for i in 0..400u64 {
+            let (axis, angle) = spin_for(i);
+            let q = Quat::axis_angle(axis, angle * (i as f32 * 0.37).fract() + i as f32);
+            for (a, b, d) in (0..8).map(|k| (k & 1, (k >> 1) & 1, (k >> 2) & 1)) {
+                let p = q.rotate([a as f32 - 0.5, b as f32 - 0.5, d as f32 - 0.5]);
+                let at = project(p, scale, c);
+                worst = worst.max((at.x - c.x).abs() / scale).max((at.y - c.y).abs() / scale);
+                assert!(rect.shrink(1.).contains(at), "orientation {i} corner {at:?} leaves {rect:?}");
+            }
+        }
+        assert!(worst <= 0.9 + 1e-3, "reach {worst}");
+        let shadow_bottom = c.y + scale * (0.92 + 0.14);
+        assert!(shadow_bottom < rect.bottom());
+        // the resting cube fills most of the box
+        let areas = face_area(rest_orientation(0), 0, scale, c);
+        assert!(areas > (side * 0.3).powi(2));
     }
 }
