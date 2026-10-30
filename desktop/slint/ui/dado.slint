@@ -24,10 +24,14 @@ export struct DadoView {
     timer-text:string,           // "0:30"
     timer-state:int,             // 0 idle, 1 running, 2 annulled
     score-text:string,           // current team's score
-    next-step:int,               // 0 roll, 1 question, 2 timer, 3 reveal, 4 score, 5 next participant
+    next-step:int,
+    teams:[string],              // team labels for the setup-mode participants editor
+    team-index:int,
+    participants-text:string,    // participants of the selected team, one per line (setup mode)               // 0 roll, 1 question, 2 timer, 3 reveal, 4 score, 5 next participant
 }
 export component DadoPanel inherits Rectangle {
     in-out property <DadoView> view;
+    in property <bool> setup;
     callback command(string,string); // "roll" "next_question" "start_timer" "pause_timer" "reset_timer" "reveal" "hide" "award" "next_participant" "back_participant" "import_bank" "reset_used" "skip_question"
     callback edit(string,string);    // "book" idx, "participants" text (team index in value), "roll_seconds" ...
     height:900px;background:#292d34;border-radius:6px;
