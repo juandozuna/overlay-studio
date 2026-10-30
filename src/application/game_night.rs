@@ -127,11 +127,15 @@ fn wheel_stage(teams: &[Team], first: u64) -> Builder {
     b
 }
 const CARD: [u8; 4] = [20, 22, 32, 235];
+// TODO: switch to dice::DICE_COLOR once task A commits it
+const DICE_COLOR_KEY: &str = "dice.color";
 const CARD_LIGHT: [u8; 4] = [34, 38, 56, 235];
 
 impl Builder {
-    fn card(&mut self, name: &str, rect: [f32; 4], fill: [u8; 4], radius: f32) {
-        self.push(name.into(), Kind::Rectangle, rect, fill).radius = radius;
+    fn card(&mut self, name: &str, rect: [f32; 4], fill: [u8; 4], radius: f32) -> &mut Element {
+        let e = self.push(name.into(), Kind::Rectangle, rect, fill);
+        e.radius = radius;
+        e
     }
 }
 fn dado_stage(teams: &[Team], first: u64) -> Builder {
@@ -139,20 +143,23 @@ fn dado_stage(teams: &[Team], first: u64) -> Builder {
     b.card("Question card", [160., 30., 1600., 190.], CARD, 24.);
     b.text("Question".into(), dice::QUESTION_TEXT, [190., 40., 1540., 170.], 46., TextAlign::Center);
     b.push("Dice".into(), Kind::Dice, [700., 250., 520., 520.], [255; 4]).animation = Animation::Pop;
-    // option rows are text only: without conditional visibility an empty panel would still show
+    // option rows are text only (values already read "A · text"): without conditional visibility an empty panel would still show
+    // 34 pt wraps to ~4 lines in 180 px, ending at y=670 well above the rule banner
     for (i, key) in dice::OPTION_KEYS.iter().enumerate() {
         let x = if i % 2 == 0 { 60. } else { 1260. };
-        let y = 300. + (i / 2) as f32 * 190.;
-        b.text(format!("Option {}", ["A", "B", "C", "D"][i]), key, [x, y, 600., 160.], 40., TextAlign::Left);
+        let y = 290. + (i / 2) as f32 * 200.;
+        b.text(format!("Option {}", ["A", "B", "C", "D"][i]), key, [x, y, 600., 180.], 34., TextAlign::Left);
     }
-    b.card("Rule card", [520., 780., 880., 90.], CARD_LIGHT, 20.);
-    b.text("Dice rule".into(), dice::RULE, [540., 780., 840., 90.], 40., TextAlign::Center);
+    b.card("Rule card", [520., 780., 880., 90.], CARD_LIGHT, 20.).fill_binding = DICE_COLOR_KEY.into();
+    b.text("Dice rule".into(), dice::RULE, [540., 780., 840., 90.], 40., TextAlign::Center).fill = [20, 22, 32, 255];
+    b.card("Status card", [520., 876., 880., 64.], [20, 22, 32, 200], 16.);
     b.text("Dice status".into(), dice::STATUS, [520., 876., 880., 64.], 44., TextAlign::Center).fill = [255, 77, 94, 255];
     b.card("Turn card", [40., 780., 460., 160.], CARD, 20.);
     b.text("Turn team".into(), dice::TURN_TEAM_NAME, [56., 786., 428., 50.], 30., TextAlign::Left).fill = [170, 180, 205, 255];
     b.text("Turn name".into(), dice::TURN_NAME, [56., 836., 428., 96.], 54., TextAlign::Left);
     b.card("Question clock card", [1420., 780., 460., 160.], CARD, 20.);
     b.text("Question clock".into(), dice::QUESTION_CLOCK_KEY, [1420., 780., 460., 160.], 110., TextAlign::Center);
+    // deferred: the approved white outline on the current team's chip needs conditional visibility, not possible with static layers
     for (i, team) in teams.iter().enumerate() {
         b.chip(team, [40. + i as f32 * 368., 950., 352., 100.], 32., 56.);
     }
@@ -238,17 +245,17 @@ impl Project {
         crate::application::wheel::seed_defaults(&mut values);
         values.insert(wheel::WINNER.into(), String::new());
         values.insert(wheel::WINNER_INDEX.into(), String::new());
-        for k in [dice::STATUS, dice::RULE, dice::RESULT, dice::QUESTION_TEXT, dice::HOST_ANSWER, dice::HOST_REF, dice::REVEALED, dice::BANK, dice::BANK_USED, dice::BANK_FILTER] {
+        for k in [DICE_COLOR_KEY, dice::STATUS, dice::RULE, dice::RESULT, dice::QUESTION_TEXT, dice::HOST_ANSWER, dice::HOST_REF, dice::REVEALED, dice::BANK, dice::BANK_USED, dice::BANK_FILTER] {
             values.insert(k.into(), String::new());
         }
         for k in dice::OPTION_KEYS {
             values.insert(k.into(), String::new());
         }
         values.insert(dice::ROLL_SECONDS.into(), "2".into());
-        values.insert(dice::TURN_TEAM.into(), "0".into());
+        values.insert(dice::TURN_TEAM.into(), teams[0].id.to_string());
         values.insert(dice::TURN_NAME.into(), "Participante 1".into());
         values.insert(dice::TURN_TEAM_NAME.into(), teams[0].label.to_uppercase());
-        values.insert(dice::QUESTION_CLOCK_KEY.into(), "0:30".into());
+        values.insert(dice::QUESTION_CLOCK_KEY.into(), crate::model::clock_text(dice::QUESTION_SECONDS));
         for team in &teams {
             values.insert(dice::participants_key(team.id), "Participante 1\nParticipante 2\nParticipante 3".into());
         }
