@@ -40,7 +40,13 @@ impl Snapshot {
     pub fn from_project(p: &Project, running: &[bool], outputs: Vec<String>) -> Self {
         Self {
             project: p.name.clone(),
-            values: p.values.clone(),
+            // The phone does not need the question bank, which can be large.
+            values: p
+                .values
+                .iter()
+                .filter(|(key, _)| !matches!(key.as_str(), crate::domain::dice::BANK | crate::domain::dice::BANK_USED))
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
             layout: p.controller.clone(),
             teams: p
                 .teams
@@ -409,6 +415,11 @@ mod tests {
         p.validate().unwrap();
         p.values.insert("wheel.winner".into(), "Ada".into());
         let value = serde_json::to_value(Snapshot::from_project(&p, &[false], vec![])).unwrap();
+        assert_eq!(value["values"]["wheel.winner"], "Ada");
+        p.values.insert(crate::domain::dice::BANK.into(), "book,reference".into());
+        p.values.insert(crate::domain::dice::BANK_USED.into(), "1,2".into());
+        let value = serde_json::to_value(Snapshot::from_project(&p, &[false], vec![])).unwrap();
+        assert!(value["values"].get(crate::domain::dice::BANK).is_none() && value["values"].get(crate::domain::dice::BANK_USED).is_none());
         assert_eq!(value["values"]["wheel.winner"], "Ada");
         let mut layout = value["layout"].clone();
         for control in layout["controls"].as_array_mut().unwrap() {
