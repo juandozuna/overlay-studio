@@ -189,7 +189,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <ol>
 <li>Start from the template <b>examples/El Dado Questions Template.csv</b>, found in the Overlay Studio project's <i>examples</i> folder. Replace the placeholder rows with your own questions. Each row has the columns <b>book, reference, question, a, b, c, d, correct</b>.</li>
 <li>Save the file as <b>CSV UTF-8</b> (in Excel or Numbers, choose that format). If a question contains a comma, the template shows how to put quotation marks around that cell.</li>
-<li>In <b>Live</b>, find the <b>El Dado</b> section in the left column, open the question bank and click <b>Import questions</b>. The app says how many questions it loaded. If the file is refused, the app tells you why and keeps the questions it already has.</li>
+<li>In <b>Live</b>, find the <b>El Dado</b> section in the left column, open the question bank and click <b>Import questions (CSV)…</b>. The app says how many questions it loaded. If the file is refused, the app tells you why and keeps the questions it already has.</li>
 </ol>
 <p class="mute">Used questions are remembered, so nobody gets the same question twice. Use the <b>book</b> filter to draw only from one book.</p>
 
@@ -210,7 +210,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 <li><b>Start 30 s</b> when you finish reading. The clock counts down on screen.</li>
 <li><b>Reveal answer</b> when the participant has answered. Your panel shows the correct answer.</li>
 <li><b>+10</b> to the current team if the answer was right. For a BLUE or ORANGE turn the points still go to the participant's team, even though someone else answered.</li>
-<li><b>Next participant.</b> Moves to the next name, and the die and question clear from the screen.</li>
+<li><b>Next participant.</b> Moves to the next name and clears the question and any PREGUNTA ANULADA message. The die keeps its last colour until the next roll.</li>
 </ol>
 <p>If the clock reaches zero before anyone answers, the screen shows <b>PREGUNTA ANULADA</b> (question annulled). Move on to the next participant.</p>
 
@@ -233,7 +233,7 @@ kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;paddi
 
 <h2 id="phone">10. Control it from a phone</h2>
 <ol>
-<li>Click the <b>Remote</b> tab. The default <b>Game controls</b> layout already has score buttons for all five teams, plus <b>Show&hellip;</b> for each layout, <b>Spin wheel</b>, <b>Remove winner</b> and <b>Restore wheel</b>.</li>
+<li>Click the <b>Remote</b> tab. The default <b>Game controls</b> layout already has score buttons for all five teams, plus <b>Show&hellip;</b> for each layout, <b>Spin wheel</b>, <b>Remove winner</b> and <b>Restore wheel</b>. The El Dado buttons are on the same layout: <b>Roll dice</b>, <b>Next question</b>, <b>Reveal answer</b>, <b>Start 30 s</b>, <b>Next participant</b>, <b>+10 team</b> and <b>−10 team</b>, plus <b>Show 6 Dado</b>. <b>Next participant</b> and <b>−10 team</b> ask you to confirm.</li>
 <li>Pick the Mac's network address in <b>Connect a device</b> (use the one on your Wi-Fi) and click <b>Start remote control</b>.</li>
 <li>On the phone, join the <b>same Wi-Fi</b> and scan the QR code that appears in the app. The controller opens in the phone's browser.</li>
 </ol>
