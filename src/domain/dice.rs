@@ -10,6 +10,7 @@ pub const FACE: &str = "dice.face"; // 0..=5 face chosen at roll time; painter l
 pub const RESULT: &str = "dice.result"; // face name (ROJO...), published only after the roll lands, empty otherwise
 pub const RULE: &str = "dice.rule"; // rule text of the landed face, empty before landing
 pub const STATUS: &str = "dice.status"; // "" or STATUS_ANNULLED
+pub const DICE_COLOR: &str = "dice.color"; // #RRGGBB of the landed face, published with RESULT, empty otherwise
 pub const COLORS: &str = "dice.colors"; // optional comma-separated #RRGGBB x6, overrides default face colours
 pub const RULES_PREFIX: &str = "dice.rules."; // dice.rules.0 .. dice.rules.5, editable Spanish rule text
 pub const STATUS_ANNULLED: &str = "PREGUNTA ANULADA";
@@ -22,9 +23,10 @@ pub const OPTION_KEYS: [&str; 4] = ["question.a", "question.b", "question.c", "q
 pub const HOST_ANSWER: &str = "dado.host.answer";
 pub const HOST_REF: &str = "dado.host.ref";
 pub const REVEALED: &str = "dado.revealed"; // "1" once the host revealed the answer (host panel only)
+pub const AWARDED: &str = "dado.awarded"; // "1" once points were awarded this turn, cleared by roll / next participant / import
 
 // ---- turns ----
-pub const TURN_TEAM: &str = "dado.turn.team"; // index into Project::teams
+pub const TURN_TEAM: &str = "dado.turn.team"; // id of the team that is up; empty or "0" = nobody yet
 pub const TURN_NAME: &str = "dado.turn.name"; // current participant, bindable ("TURNO")
 pub const TURN_TEAM_NAME: &str = "dado.turn.team_name";
 pub fn participants_key(team_id: u64) -> String {
@@ -118,8 +120,8 @@ impl DiceConfig {
     pub fn read(values: &BTreeMap<String, String>) -> Self {
         let get = |k: &str| values.get(k).map(|v| v.trim()).unwrap_or("");
         let d = Self::default();
-        let custom: Vec<[u8; 3]> = get(COLORS).split(',').filter_map(|h| super::wheel::parse_hex(h.trim())).collect();
-        let colors = if custom.len() == 6 { [custom[0], custom[1], custom[2], custom[3], custom[4], custom[5]] } else { d.colors };
+        let custom: Vec<&str> = get(COLORS).split(',').collect();
+        let colors = std::array::from_fn(|i| custom.get(i).and_then(|h| super::wheel::parse_hex(h.trim())).unwrap_or(d.colors[i]));
         let rules = std::array::from_fn(|i| {
             let text = get(&format!("{RULES_PREFIX}{i}"));
             if text.is_empty() { d.rules[i].clone() } else { text.to_string() }
@@ -151,6 +153,15 @@ mod tests {
         assert_eq!((c.roll_id, c.face), (4, Some(Face::Amarillo)));
         assert_eq!(c.rules[1], "Amarillo – cuatro");
         assert_eq!(c.rules[0], Face::Rojo.default_rule());
+    }
+    #[test]
+    fn a_bad_colour_only_replaces_its_own_slot() {
+        let mut v = BTreeMap::new();
+        v.insert(COLORS.into(), "#010203, nope ,#0A0B0C".into());
+        let c = DiceConfig::read(&v).colors;
+        let d = DiceConfig::default().colors;
+        assert_eq!((c[0], c[1], c[2]), ([1, 2, 3], d[1], [10, 11, 12]));
+        assert_eq!(&c[3..], &d[3..]);
     }
     #[test]
     fn only_yellow_shows_options() {
