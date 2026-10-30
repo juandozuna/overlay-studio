@@ -555,6 +555,7 @@ mod tests {
     #[test]
     fn import_is_all_or_nothing_and_resets_used() {
         let mut v = bank_values(&[("1 Samuel", "q1", true), ("2 Reyes", "q2", true)]);
+        land(&mut v, 0);
         next_question(&mut v).unwrap();
         let old = v.clone();
         assert!(import_bank(&mut v, &format!("{HEAD}x,r,,,,,,\n")).is_err());
@@ -585,10 +586,15 @@ mod tests {
     fn draws_never_repeat_until_exhausted_then_error() {
         let mut v = bank_values(&[("A", "q1", true), ("A", "q2", false), ("B", "q3", true), ("B", "q4", true)]);
         land(&mut v, 0);
+        let mut seen = std::collections::HashSet::new();
         for drawn in 1..=4 {
             next_question(&mut v).unwrap();
-            assert_eq!(used(&v).len(), drawn);
-            assert_eq!(used(&v), { let mut u = used_rows(&v); u.dedup(); u.sort_unstable(); u });
+            let raw = used_rows(&v); // draw order, not sorted
+            assert_eq!(raw.len(), drawn);
+            assert_eq!(raw.iter().collect::<std::collections::HashSet<_>>().len(), drawn, "a row was drawn twice: {raw:?}");
+            let current: usize = v[BANK_CURRENT].parse().unwrap();
+            assert!(seen.insert(current), "row {current} came up again");
+            assert_eq!(raw.last(), Some(&current));
         }
         assert_eq!(used(&v), [1, 2, 3, 4]);
         let err = next_question(&mut v).unwrap_err();
@@ -892,5 +898,214 @@ mod tests {
         assert!(!clocks[0].running);
         let mut other = Project::fresh();
         assert!(start_question_timer(&mut other, &mut vec![GameClock::new()], &mut CommandOutcome::default()).is_err());
+    }
+    // ---- QA: failure kinds, resets, limits and distribution ----
+
+    /// A bank with a question on screen and one used row, as a host mid-game would have it.
+    fn mid_game() -> Values {
+        let mut v = bank_values(&[("1 Samuel", "q1", true), ("2 Reyes", "q2", true), ("2 Reyes", "q3", false)]);
+        set_bank_filter(&mut v, "2 Reyes");
+        land(&mut v, 3);
+        next_question(&mut v).unwrap();
+        v
+    }
+    #[test]
+    fn every_kind_of_failed_import_leaves_bank_used_and_question_untouched() {
+        let rows = |n: usize| "a,r,q,1,2,3,4,A\n".repeat(n);
+        let cases: Vec<(&str, String, &str)> = vec![
+            ("semicolons", "book;reference;question;A;B;C;D;correct\nx;r;q;a;b;c;d;A\n".into(), "semicolons"),
+            ("semicolons with a comma header", format!("{HEAD}x;r;q;a;b;c;d;A\n"), ""),
+            ("missing header column", "book,reference,question,A,B,C,correct\nx,r,q,a,b,c,A\n".into(), "d"),
+            ("empty question", format!("{HEAD}x,r,,a,b,c,d,A\n"), "Line 2"),
+            ("empty correct", format!("{HEAD}x,r,q,a,b,c,d,\n"), "Line 2"),
+            ("correct points at an empty option", format!("{HEAD}x,r,q,a,b,,d,C\n"), "Line 2"),
+            ("unclosed quote", format!("{HEAD}x,r,\"q,a,b,c,d,A\n"), ""),
+            ("over MAX_BYTES", format!("{HEAD}{}", "x".repeat(question_bank::MAX_BYTES)), "too large"),
+            ("over MAX_ROWS", format!("{HEAD}{}", rows(question_bank::MAX_ROWS + 1)), "limit"),
+            ("header only", HEAD.to_string(), "no questions"),
+            ("empty", String::new(), "empty"),
+            ("whitespace only", "  \n\n \n".to_string(), ""),
+        ];
+        let mut v = mid_game();
+        let before = v.clone();
+        let (bank, used_before, current, question) = (v[BANK].clone(), v[BANK_USED].clone(), v[BANK_CURRENT].clone(), v[keys::QUESTION_TEXT].clone());
+        assert!(!used_before.is_empty() && !current.is_empty() && !question.is_empty());
+        for (name, text, mentions) in cases {
+            let err = import_bank(&mut v, &text).err().unwrap_or_else(|| panic!("{name} was accepted"));
+            assert!(!err.is_empty() && err.contains(mentions), "{name}: {err}");
+            assert_eq!(v, before, "{name} changed the values");
+            assert_eq!((&v[BANK], &v[BANK_USED], &v[BANK_CURRENT], &v[keys::QUESTION_TEXT]), (&bank, &used_before, &current, &question), "{name}");
+        }
+        // non-UTF-8 bytes die in `decode`, before an import can even start
+        for bytes in [&b"book,reference,question,A,B,C,D,correct\nx,r,Se\xf1or,a,b,c,d,A\n"[..], &[0xff, 0xfe, b'b', 0, b'o', 0][..]] {
+            let err = question_bank::decode(bytes).unwrap_err();
+            assert!(err.contains("UTF-8"), "{err}");
+        }
+        assert_eq!(v, before);
+        // and the same bank still imports afterwards
+        assert!(import_bank(&mut v, &csv(&[("A", "fresh", true)])).is_ok());
+        assert_eq!(v[BANK_USED], "");
+    }
+    #[test]
+    fn a_failed_import_keeps_the_book_filter_too() {
+        let mut v = mid_game();
+        assert!(import_bank(&mut v, "garbage").is_err());
+        assert_eq!(get(&v, keys::BANK_FILTER), "2 Reyes");
+        // a good import drops a filter naming a book the new file lacks
+        import_bank(&mut v, &csv(&[("1 Samuel", "q", true)])).unwrap();
+        assert_eq!(get(&v, keys::BANK_FILTER), "");
+    }
+    #[test]
+    fn trailing_separator_rows_and_a_bom_import_cleanly() {
+        let mut v = Values::new();
+        let text = format!("\u{feff}{HEAD}A,r,q1,a,b,c,d,B\n,,,,,,,\nA,r,q2,,,,,open\n,,,,,,,\n , ,,,,,,  \n");
+        let summary = import_bank(&mut v, &text).unwrap();
+        assert_eq!(summary.rows, 2);
+        assert!(!v[BANK].starts_with('\u{feff}'));
+        assert_eq!(bank_status(&v).total, 2);
+    }
+    #[test]
+    fn next_participant_and_back_one_reset_clock_and_clear_the_round() {
+        use crate::domain::controls::Action;
+        for back in [false, true] {
+            let mut p = team_project(&[2, 2]);
+            p.clocks[0].value_key = keys::QUESTION_CLOCK_KEY.into();
+            import_bank(&mut p.values, &csv(&[("A", "q", true)])).unwrap();
+            next_participant(&mut p).unwrap(); // so "back" has somewhere to go
+            let mut clocks = vec![GameClock::new()];
+            land(&mut p.values, 1);
+            next_question(&mut p.values).unwrap();
+            start_question_timer(&mut p, &mut clocks, &mut CommandOutcome::default()).unwrap();
+            p.clocks[0].seconds = 12.;
+            p.values.insert(keys::STATUS.into(), keys::STATUS_ANNULLED.into());
+            p.values.insert(keys::REVEALED.into(), "1".into());
+            award_current_team(&mut p, keys::POINTS, &mut CommandOutcome::default()).unwrap();
+            assert!(awarded(&p.values));
+            if back {
+                back_one(&mut p, &mut clocks).unwrap();
+            } else {
+                game_commands::dispatch(&mut p, &mut clocks, Action::NextParticipant).unwrap();
+            }
+            assert!(!clocks[0].running, "back={back}");
+            assert_eq!((p.clocks[0].seconds, p.values[keys::QUESTION_CLOCK_KEY].as_str()), (keys::QUESTION_SECONDS, "00:30"), "back={back}");
+            for k in [keys::RESULT, keys::RULE, keys::FACE, keys::DICE_COLOR, keys::STATUS, keys::AWARDED, keys::QUESTION_TEXT, keys::HOST_ANSWER, keys::HOST_REF, keys::REVEALED, BANK_CURRENT]
+                .into_iter()
+                .chain(keys::OPTION_KEYS)
+            {
+                assert_eq!(p.values[k], "", "back={back} {k}");
+            }
+            assert_eq!(timer_state(&p, false), 0);
+            assert_eq!(used(&p.values), [1]); // the used list is not part of the round
+        }
+    }
+    #[test]
+    fn yellow_options_carry_their_letter_and_vanish_on_other_colours() {
+        let mut v = bank_values(&[("A", "q1", true)]);
+        land(&mut v, 1);
+        next_question(&mut v).unwrap();
+        let shown = keys::OPTION_KEYS.map(|k| v[k].clone());
+        for (option, prefix) in shown.iter().zip(["A · ", "B · ", "C · ", "D · "]) {
+            assert!(option.starts_with(prefix), "{option}");
+        }
+        // landing on another colour for the same question wipes them
+        reset_used(&mut v);
+        land(&mut v, 4);
+        next_question(&mut v).unwrap();
+        assert!(keys::OPTION_KEYS.iter().all(|k| v[*k].is_empty()), "{:?}", keys::OPTION_KEYS.map(|k| &v[k]));
+        // the host answer stays host-only and lettered
+        assert_eq!(v[keys::HOST_ANSWER], "B · b");
+        assert!(keys::OPTION_KEYS.iter().all(|k| !k.contains("host")));
+    }
+    #[test]
+    fn awarded_is_set_by_plus_points_and_cleared_by_roll_next_participant_and_import() {
+        let mut p = team_project(&[1, 1]);
+        let win = |p: &mut Project| {
+            award_current_team(p, keys::POINTS, &mut CommandOutcome::default()).unwrap();
+            assert!(awarded(&p.values));
+        };
+        win(&mut p);
+        roll(&mut p.values).unwrap();
+        assert!(!awarded(&p.values), "roll");
+        win(&mut p);
+        next_participant(&mut p).unwrap();
+        assert!(!awarded(&p.values), "next participant");
+        win(&mut p);
+        previous_participant(&mut p).unwrap();
+        assert!(!awarded(&p.values), "back one");
+        win(&mut p);
+        import_bank(&mut p.values, &csv(&[("A", "q", true)])).unwrap();
+        assert!(!awarded(&p.values), "import");
+        // taking points away does not count as awarding
+        award_current_team(&mut p, -keys::POINTS, &mut CommandOutcome::default()).unwrap();
+        assert!(!awarded(&p.values));
+    }
+    #[test]
+    fn a_deleted_team_never_receives_points_by_falling_back_to_team_zero() {
+        // team ids 1,2,3; team id 2 (index 1) is up, then it is deleted
+        let mut p = team_project(&[1, 1, 1]);
+        next_participant(&mut p).unwrap();
+        assert_eq!(p.values[keys::TURN_TEAM], "2");
+        let scores = |p: &Project| p.teams.iter().map(|t| p.values[&t.score_key].clone()).collect::<Vec<_>>();
+        let before = scores(&p);
+        p.teams.remove(1);
+        for points in [10, -10] {
+            let err = award_current_team(&mut p, points, &mut CommandOutcome::default()).unwrap_err();
+            assert_eq!(err, CommandError::Dice("The team that was up no longer exists. Click Next participant.".into()));
+        }
+        assert_eq!(scores(&p), [before[0].clone(), before[2].clone()]);
+        assert!(!awarded(&p.values));
+        // deleting a team ahead of the one that is up keeps pointing at the same team by id
+        let mut q = team_project(&[1, 1, 1]);
+        next_participant(&mut q).unwrap();
+        next_participant(&mut q).unwrap();
+        assert_eq!(q.values[keys::TURN_TEAM], "3");
+        q.teams.remove(0);
+        award_current_team(&mut q, 10, &mut CommandOutcome::default()).unwrap();
+        assert_eq!((q.values["team1.score"].as_str(), q.values["team2.score"].as_str()), ("0", "10"));
+    }
+    #[test]
+    fn remaining_honours_filter_yellow_and_out_of_range_used_rows() {
+        let mut v = bank_values(&[("A", "open", false), ("A", "mc1", true), ("B", "mc2", true), ("B", "open2", false)]);
+        let remaining = |v: &Values| bank_status(v).remaining;
+        assert_eq!(remaining(&v), 4);
+        set_bank_filter(&mut v, "A");
+        assert_eq!(remaining(&v), 2);
+        set_bank_filter(&mut v, "B");
+        land(&mut v, 1); // yellow: only rows with options count
+        assert_eq!(remaining(&v), 1);
+        set_bank_filter(&mut v, "");
+        assert_eq!(remaining(&v), 2);
+        land(&mut v, 0); // any other colour
+        assert_eq!(remaining(&v), 4);
+        // duplicate and out-of-range used entries neither double count nor go negative
+        v.insert(BANK_USED.into(), "2,2, 99,x".into());
+        let s = bank_status(&v);
+        assert_eq!((s.used, s.remaining), (1, 3));
+        v.insert(BANK_USED.into(), "1,2,3,4".into());
+        let s = bank_status(&v);
+        assert_eq!((s.used, s.remaining), (4, 0));
+    }
+    #[test]
+    fn rolls_through_the_real_rng_are_uniform() {
+        const N: usize = 6000;
+        let mut v = Values::new();
+        let mut counts = [0usize; 6];
+        let mut faces = Vec::with_capacity(N);
+        for n in 1..=N {
+            roll(&mut v).unwrap(); // clock-seeded, so the outcome differs per run: the bounds below must never flake
+            assert_eq!(v[keys::ROLL_ID], n.to_string());
+            let face: usize = v[keys::FACE].parse().unwrap();
+            counts[face] += 1;
+            faces.push(face);
+        }
+        // expected 1000 each, sd ~29: 750..1250 is +-8.6 sd; chi-square (5 dof) < 40 has p < 1e-7
+        for (face, count) in counts.iter().enumerate() {
+            assert!((750..=1250).contains(count), "face {face} came up {count} times: {counts:?}");
+        }
+        let chi2: f64 = counts.iter().map(|c| (*c as f64 - 1000.).powi(2) / 1000.).sum();
+        assert!(chi2 < 40., "chi-square {chi2} for {counts:?}");
+        // consecutive rolls repeat about 1 in 6 (expected ~1000, sd ~29)
+        let repeats = faces.windows(2).filter(|w| w[0] == w[1]).count();
+        assert!((700..=1300).contains(&repeats), "{repeats} repeats");
     }
 }

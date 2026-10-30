@@ -164,6 +164,23 @@ mod tests {
         assert_eq!(&c[3..], &d[3..]);
     }
     #[test]
+    fn valid_colours_survive_a_bad_neighbour_in_every_position() {
+        let d = DiceConfig::default().colors;
+        let read = |text: &str| {
+            let mut v = BTreeMap::new();
+            v.insert(COLORS.into(), text.into());
+            DiceConfig::read(&v).colors
+        };
+        assert_eq!(read("nope,#020304"), { let mut c = d; c[1] = [2, 3, 4]; c });
+        assert_eq!(read(",,#0A0B0C"), { let mut c = d; c[2] = [10, 11, 12]; c });
+        assert_eq!(read("#GGGGGG,#12345,#0102030,#010203"), { let mut c = d; c[3] = [1, 2, 3]; c });
+        assert_eq!(read("#010203,"), { let mut c = d; c[0] = [1, 2, 3]; c });
+        assert_eq!(read("garbage"), d);
+        assert_eq!(read(""), d);
+        // extra entries past the sixth are ignored
+        assert_eq!(read("#000001,#000002,#000003,#000004,#000005,#000006,#000007")[5], [0, 0, 6]);
+    }
+    #[test]
     fn only_yellow_shows_options() {
         assert!(Face::ALL.iter().filter(|f| f.shows_options()).count() == 1 && Face::Amarillo.shows_options());
     }
