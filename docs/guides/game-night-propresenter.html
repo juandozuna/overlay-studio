@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game night with ProPresenter &mdash; Overlay Studio how-to</title>
+<meta name="description" content="Step-by-step how-to for church volunteers: send the Overlay Studio game night scoreboard, wheel and effects into ProPresenter over NDI.">
+<meta property="og:image" content="img/gn-live.png">
+<style>
+:root{--bg:#0b0d12;--panel:#141821;--line:#232937;--text:#e8ebf2;--mute:#9aa3b5;--accent:#4cc2ff;--accent2:#7c5cff}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7fa;--panel:#fff;--line:#e0e4ec;--text:#12151c;--mute:#586074;--accent:#0a7ac9;--accent2:#5b3fe0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+nav b{font-size:18px;letter-spacing:.2px}
+nav a{color:var(--mute);text-decoration:none;margin-left:20px;font-size:15px}
+.hero{text-align:center;padding:56px 0 40px}
+.hero h1{font-size:clamp(34px,6vw,60px);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}
+.hero h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:640px;margin:0 auto 28px;color:var(--mute);font-size:19px}
+.btn{display:inline-block;padding:13px 24px;border-radius:10px;font-weight:600;text-decoration:none;margin:4px}
+.btn.p{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff}
+.btn.s{border:1px solid var(--line);color:var(--text);background:var(--panel)}
+.shot{border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35);background:var(--panel)}
+.shot img{display:block;width:100%;height:auto}
+.hero .shot{margin-top:36px}
+section{padding:64px 0}
+h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.01em;margin:0 0 10px}
+.lead{color:var(--mute);margin:0 0 32px;max-width:640px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
+.card h3{margin:0 0 6px;font-size:18px}
+.card p{margin:0;color:var(--mute);font-size:15px}
+.row{display:grid;grid-template-columns:1fr 1.3fr;gap:36px;align-items:center;margin-bottom:64px}
+.row.rev{grid-template-columns:1.3fr 1fr}.row.rev .txt{order:2}
+.row p{color:var(--mute)}
+.steps{counter-reset:s;list-style:none;padding:0;display:grid;gap:12px}
+.steps li{counter-increment:s;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px 16px 58px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:16px;top:14px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.cta{text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:56px 20px}
+footer{padding:36px 0 48px;color:var(--mute);font-size:14px;text-align:center}
+@media(max-width:760px){.row,.row.rev{grid-template-columns:1fr}.row.rev .txt{order:0}nav a{margin-left:12px}}
+
+.doc{max-width:860px;margin:0 auto}
+.doc h1{font-size:clamp(30px,5vw,46px);line-height:1.1;margin:10px 0 14px;letter-spacing:-.02em}
+.doc h2{margin:56px 0 10px;font-size:clamp(24px,3.6vw,32px)}
+.doc h3{margin:28px 0 6px;font-size:19px}
+.doc p,.doc li{color:var(--text)}
+.doc .mute{color:var(--mute)}
+.doc ol,.doc ul{padding-left:22px}.doc li{margin:6px 0}
+.doc figure{margin:20px 0}.doc figure img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.doc figcaption{color:var(--mute);font-size:14px;margin-top:8px}
+.note{border-left:4px solid var(--accent);background:var(--panel);border-radius:8px;padding:12px 16px;margin:18px 0}
+.warn{border-left-color:#ffb020}
+.note b:first-child{display:block;margin-bottom:2px}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:16px}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{background:var(--panel)}
+.check li{list-style:none;margin-left:-22px}.check li::before{content:"\2610  "}
+kbd{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:.9em}
+.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 22px;margin:22px 0}.toc ol{margin:0}
+@media print{body{background:#fff;color:#000;font-size:12pt}.doc figure img{box-shadow:none}nav,footer{display:none}h2{break-after:avoid}figure{break-inside:avoid}}
+</style></head><body>
+<div class="wrap doc">
+<nav><b><a href="../" style="color:inherit;text-decoration:none">Overlay Studio</a></b><div><a href="../">Home</a><a href="https://github.com/juandozuna/overlay-studio/releases/latest">Download</a></div></nav>
+<p class="mute" style="margin:30px 0 0">How-to guide for volunteers &middot; Overlay Studio 0.3.0 &middot; ProPresenter 7 / 20</p>
+<h1>Run a game night with Overlay Studio and ProPresenter</h1>
+<p class="lead">A five-team scoreboard, a prize wheel, score effects and sounds, all dropped on top of your ProPresenter slides and run from a phone. No design skills needed: the Game Night project is ready the moment you open the app.</p>
+
+<div class="toc"><b>On this page</b><ol>
+<li><a href="#need">What you need</a></li>
+<li><a href="#install">Install Overlay Studio</a></li>
+<li><a href="#teams">Name your teams</a></li>
+<li><a href="#ndi">Start the NDI output</a></li>
+<li><a href="#pp">Bring it into ProPresenter</a></li>
+<li><a href="#run">Run the night</a></li>
+<li><a href="#wheel">The prize wheel</a></li>
+<li><a href="#fx">Score effects and sounds</a></li>
+<li><a href="#phone">Control it from a phone</a></li>
+<li><a href="#fix">If something goes wrong</a></li>
+<li><a href="#checklist">Pre-show checklist</a></li>
+</ol></div>
+
+<h2 id="need">1. What you need</h2>
+<ul>
+<li>A Mac running macOS 13 or newer. Overlay Studio and ProPresenter can run on the <b>same Mac</b> or on two Macs on the same network.</li>
+<li>ProPresenter 7 or newer (these steps were checked against Renewed Vision's documentation for ProPresenter 20).</li>
+<li>Optional: a phone or iPad on the same Wi-Fi as the Mac, to run the game from the room.</li>
+<li>Optional: your own sound effects (wav, mp3, ogg or flac files).</li>
+</ul>
+<div class="note"><b>How it works in one sentence</b>Overlay Studio draws the scoreboard with a see-through background and sends it over your network as an <b>NDI</b> video source; ProPresenter receives that source as a <b>Video Input</b> and shows it over your slides.</div>
+
+<h2 id="install">2. Install Overlay Studio</h2>
+<ol>
+<li>Download <b>Overlay-Studio.dmg</b> from the <a href="https://github.com/juandozuna/overlay-studio/releases/latest">latest release</a>.</li>
+<li>Open the DMG and drag <b>Overlay Studio</b> into <b>Applications</b>.</li>
+<li>Open it. If macOS says it cannot verify the app, right-click the app, choose <b>Open</b>, then <b>Open</b> again. You only do this once.</li>
+<li>If macOS asks to allow <b>local network</b> access, click <b>Allow</b>. NDI and the phone remote need it.</li>
+</ol>
+<p>The app opens on a ready-made project called <b>Game Night</b>: five teams, five layouts, a clock and a prize wheel.</p>
+<figure><img src="img/gn-design.png" alt="Overlay Studio Design workspace showing the Game Night full grid layout" loading="lazy"><figcaption>The Design tab. You do not need it on game night; the five layouts are already built.</figcaption></figure>
+
+<h2 id="teams">3. Name your teams</h2>
+<ol>
+<li>Click the <b>Live</b> tab, then <b>Game setup</b> (it becomes <b>Finish setup</b>).</li>
+<li>For each team change the <b>Label</b> (the name shown on screen), pick a <b>Team color</b>, and check the <b>Steps</b> (the score buttons, for example <kbd>-1, 1, 2, 3</kbd>).</li>
+<li>Click <b>Finish setup</b>. Team colors recolor all five layouts at once.</li>
+<li>Choose <b>Save as</b> and keep the file, for example <i>Friday Game Night.overlay</i>, so you can reopen it next time.</li>
+</ol>
+<figure><img src="img/gn-setup.png" alt="Game setup with team label, color and steps" loading="lazy"><figcaption>Game setup: label, color and score steps for each team.</figcaption></figure>
+
+<h2 id="ndi">4. Start the NDI output</h2>
+<p>An <b>output</b> is a channel that sends the picture out of Overlay Studio. You will start one as NDI.</p>
+<ol>
+<li>In <b>Live</b>, look at the <b>Outputs</b> column on the right. The first output is <b>Overlay Studio &bull; Broadcast</b>. Change its protocol dropdown from <b>Syphon</b> to <b>NDI</b>.</li>
+<li>Check the layout dropdown (for example <b>1 Full grid</b>), then click <b>Start output</b>. The status changes from <i>Stopped</i> to sending.</li>
+<li>Click <b>Take design</b> to put the chosen layout on the output.</li>
+</ol>
+<figure><img src="img/gn-live.png" alt="Overlay Studio Live workspace with designs, scores and outputs" loading="lazy"><figcaption>The Live tab: layouts on the left, preview in the middle, outputs on the right.</figcaption></figure>
+<div class="note warn"><b>Why the first output?</b>The phone's <i>Show&hellip;</i> buttons always switch the <b>first</b> output. If you leave that one on Syphon and send NDI from the second output (<b>Overlay Studio &bull; Venue</b>), the phone will change a layout ProPresenter is not receiving. Using the first output for NDI avoids this.</div>
+<p class="mute"><b>Hide</b> sends a fully see-through picture without stopping the output. It is the quick way to clear the scoreboard from the screens.</p>
+
+<h2 id="pp">5. Bring it into ProPresenter</h2>
+<p>Do this once, then every game night only needs steps 4 and 6.</p>
+<h3>Add the input</h3>
+<ol>
+<li>Leave Overlay Studio's NDI output running.</li>
+<li>In ProPresenter open <b>ProPresenter &rsaquo; Settings &rsaquo; Inputs</b> and choose the <b>Video Inputs</b> tab.</li>
+<li>Click <b>+</b> above <b>Add Video Input</b>.</li>
+</ol>
+<figure><img src="img/pp-1-inputs.png" alt="Illustration of the ProPresenter Settings, Inputs, Video Inputs tab" loading="lazy"><figcaption>Settings &rsaquo; Inputs &rsaquo; Video Inputs. (Illustration of the steps, not a screenshot of ProPresenter.)</figcaption></figure>
+<ol start="4">
+<li>Select the new input, open the <b>Device</b> dropdown and choose the <b>Overlay Studio &bull; Broadcast</b> NDI source. Its name usually starts with your Mac's name.</li>
+<li>A live preview of the scoreboard should appear. If it asks for a resolution and frame rate, choose <b>1920&times;1080</b> and <b>30</b>.</li>
+<li>Give it a name you will recognize, such as <b>Overlay Studio</b>.</li>
+</ol>
+<figure><img src="img/pp-2-device.png" alt="Illustration of choosing the Overlay Studio NDI source in the Device dropdown" loading="lazy"><figcaption>Pick the Overlay Studio NDI source and check the live preview. (Illustration.)</figcaption></figure>
+<div class="note warn"><b>Source not in the list?</b>Same Mac for both apps: open the <b>NDI Input Discovery</b> settings in ProPresenter and turn on <b>Show Sources running on the local machine</b>. Separate Macs: make sure both are on the same network and subnet. More in <a href="#fix">If something goes wrong</a>.</div>
+<h3>Show it on the screens</h3>
+<ol start="7">
+<li>In the Media Bin open the <b>Video Input Playlist</b> and click <b>Overlay Studio</b>. Your scoreboard appears on the audience screens.</li>
+<li>You can also add it as a <b>Video Input Action</b> on a slide or macro, or as a <b>Video Input</b> element in the Slide Editor, so it appears when you click that slide.</li>
+</ol>
+<figure><img src="img/pp-3-trigger.png" alt="Illustration of triggering the Overlay Studio video input from the Video Input Playlist" loading="lazy"><figcaption>Trigger the input from the Video Input Playlist. (Illustration.)</figcaption></figure>
+<div class="note warn"><b>Layering: rehearse this once</b>ProPresenter draws a Video Input on its own <i>Video Input layer</i>, which sits <b>below</b> the Slide layer. A slide with a background or text can cover it. For a scoreboard that sits on top of slides, put it on the slide as a <b>Video Input element</b> (Slide Editor) or use slides without a background, and run through it before the event. Renewed Vision describes the layers in <i>ProPresenter Output Layers</i>.</div>
+<div class="note"><b>Edges look dark or fringed?</b>Overlay Studio sends see-through areas (alpha). If you see a dark outline, open the input in <b>Settings &rsaquo; Inputs</b> and untick <b>Premultiplied</b> for that input (see Renewed Vision's <i>Premultiplied and Straight Keying</i>).</div>
+
+<h2 id="run">6. Run the night</h2>
+<p>All of this happens in Overlay Studio's <b>Live</b> tab.</p>
+<h3>Pick a layout</h3>
+<p>Click a layout under <b>Designs</b>, then <b>Take design</b> to put it on the output. Or use the <b>Show&hellip;</b> buttons on the phone.</p>
+<table><tr><th>Layout</th><th>Use it when</th></tr>
+<tr><td><b>1 Full grid</b></td><td>Introductions and the big reveal: all five teams, large scores and the clock.</td></tr>
+<tr><td><b>2 Top bar</b></td><td>During a round, keeping the middle of the screen free for questions or video.</td></tr>
+<tr><td><b>3 Bottom strip</b></td><td>Lyrics, trivia slides or video above, scores along the bottom.</td></tr>
+<tr><td><b>4 Side stack</b></td><td>Slides on the right, scores stacked down the left.</td></tr>
+<tr><td><b>5 Wheel stage</b></td><td>The prize wheel in the middle with team scores along the bottom.</td></tr></table>
+<h3>Keep score and time</h3>
+<ul>
+<li>Under <b>Live scores</b> every team has buttons (for example <kbd>-1</kbd> <kbd>+1</kbd> <kbd>+2</kbd> <kbd>+3</kbd>). Click once per change; the number updates on screen at once.</li>
+<li>Under <b>Clocks</b> use <b>Start</b>, <b>Reset</b> and the <kbd>&minus;10s</kbd> <kbd>+10s</kbd> <kbd>+60s</kbd> buttons for the game clock.</li>
+<li>A wrong click? Use <b>Undo</b> at the top right.</li>
+</ul>
+
+<h2 id="wheel">7. The prize wheel</h2>
+<ol>
+<li>In <b>Live</b> scroll the left column to <b>Wheel</b>. Type your choices into <b>Entries</b>, one per line (it starts with ideas like Trivia round and Charades).</li>
+<li>Click <b>5 Wheel stage</b>, then <b>Take design</b>.</li>
+<li>Click <b>Spin</b>. The wheel turns, slows and lands; the winner's name shows above it.</li>
+<li>Click <b>Remove winner</b> to take that entry off so it cannot be picked twice. <b>Restore original list</b> puts every entry back.</li>
+</ol>
+<p>Under the buttons you can change the <b>Pointer</b> style, <b>Slices</b> style, <b>Palette</b>, spin time in seconds and confetti.</p>
+<figure><img src="img/gn-wheel.png" alt="Wheel panel with entries, Spin, Remove winner and Restore original list" loading="lazy"><figcaption>The Wheel panel in the Live tab.</figcaption></figure>
+
+<h2 id="fx">8. Score effects and sounds</h2>
+<p>Every point added tints that team's tiles <b>green</b>, every point removed tints them <b>black</b>, then they ease back. Each layout has its own style (flash and pop, sweep, wipe, shake or sparkle burst). In <b>Live &rsaquo; Effects and sound</b> you can:</p>
+<ul>
+<li>Choose the colors, how long the effect lasts and the overall volume.</li>
+<li>Pick the sound for <b>Point added</b>, <b>Point removed</b>, <b>Wheel spin</b>, <b>Wheel lands</b> and <b>Wheel remove</b>. Press <b>Test</b> next to each to hear it.</li>
+<li>Give a team its own sound under <b>Per-team sounds</b> (it overrides the global choice).</li>
+<li>Import your own wav, mp3, ogg or flac files. Imported sounds are saved inside the project file.</li>
+</ul>
+<figure><img src="img/gn-effects.png" alt="Effects and sound panel with sound pickers and Test buttons" loading="lazy"><figcaption>Sound pickers and per-team overrides.</figcaption></figure>
+<div class="note warn"><b>Where the sound comes out</b>Overlay Studio plays sounds from the Mac it runs on, through that Mac's normal audio output. NDI carries the picture only. Connect that Mac's audio output to your sound system (or mixer) and test it before doors open.</div>
+
+<h2 id="phone">9. Control it from a phone</h2>
+<ol>
+<li>Click the <b>Remote</b> tab. The default <b>Game controls</b> layout already has score buttons for all five teams, plus <b>Show&hellip;</b> for each layout, <b>Spin wheel</b>, <b>Remove winner</b> and <b>Restore wheel</b>.</li>
+<li>Pick the Mac's network address in <b>Connect a device</b> (use the one on your Wi-Fi) and click <b>Start remote control</b>.</li>
+<li>On the phone, join the <b>same Wi-Fi</b> and scan the QR code that appears in the app. The controller opens in the phone's browser.</li>
+</ol>
+<figure><img src="img/gn-remote.png" alt="Remote workspace with the Game controls button layout and Connect a device panel" loading="lazy"><figcaption>The Remote tab: the button layout is what appears on the phone.</figcaption></figure>
+<p class="mute">Venue Wi-Fi that blocks devices from talking to each other (client isolation) will stop pairing. A small travel router for the media team solves it.</p>
+
+<h2 id="fix">10. If something goes wrong</h2>
+<table><tr><th>Problem</th><th>Try this</th></tr>
+<tr><td>ProPresenter does not list the NDI source</td><td>Check the output says it is sending. Same Mac: enable <b>Show Sources running on the local machine</b> under NDI Input Discovery. Separate Macs: same network and subnet, wired if you can. Reopen the Device dropdown.</td></tr>
+<tr><td>Scoreboard shows in ProPresenter but is hidden behind slides</td><td>See the layering note in section 5: use a Video Input element on the slide, or slides without a background.</td></tr>
+<tr><td>Dark edges around the graphics</td><td>Untick <b>Premultiplied</b> for that input in Settings &rsaquo; Inputs.</td></tr>
+<tr><td>Phone buttons change nothing on screen</td><td>The phone controls the <b>first</b> output. Make sure that output is the one sending NDI (section 4).</td></tr>
+<tr><td>Phone will not pair</td><td>Same Wi-Fi as the Mac, and click <b>Start remote control</b> first. Check the Mac allowed local network access.</td></tr>
+<tr><td>No sound</td><td>Press <b>Test</b> in Effects and sound. Check the Mac's output device and volume. Overlay Studio retries the audio device if it was unplugged.</td></tr>
+<tr><td>You quit by accident</td><td>Reopen the app. It offers to <b>recover</b> unsaved work.</td></tr></table>
+<p class="mute">Sources: Renewed Vision &mdash; <a href="https://support.renewedvision.com/hc/en-us/articles/360053482973-Setting-Up-A-Video-Input-in-ProPresenter">Setting Up A Video Input in ProPresenter</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/32161719466643-NDI-Input-Discovery">NDI Input Discovery</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/4403014667283-NDI-Troubleshooting">NDI Troubleshooting</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/13634000690323-ProPresenter-Output-Layers">ProPresenter Output Layers</a>, <a href="https://support.renewedvision.com/hc/en-us/articles/18438961234835-Premultiplied-and-Straight-Keying">Premultiplied and Straight Keying</a>.</p>
+
+<h2 id="checklist">11. Pre-show checklist</h2>
+<p>Print this page (<kbd>Cmd</kbd>+<kbd>P</kbd>) or keep it on a phone.</p>
+<ul class="check">
+<li>Team names, colors and score steps set; project saved.</li>
+<li>First output set to <b>NDI</b>, started, and a layout taken.</li>
+<li>ProPresenter shows the <b>Overlay Studio</b> input with a live preview.</li>
+<li>Scoreboard appears <b>over</b> a test slide on the audience screen.</li>
+<li>Clock starts, stops and resets.</li>
+<li>Press <b>+1</b> for a team: the tiles flash green and the sound plays through the room speakers.</li>
+<li>Wheel entries typed in; one test spin, then <b>Restore original list</b>.</li>
+<li>Phone paired; <b>Show&hellip;</b> and <b>Spin wheel</b> buttons work.</li>
+<li>Scores reset to 0 and clock reset before doors open.</li>
+<li>A second person knows how to <b>Hide</b> the scoreboard in an emergency.</li>
+</ul>
+</div>
+<footer>Overlay Studio &middot; <a href="../">Home</a> &middot; NDI&reg; is a trademark of Vizrt NDI AB.</footer>
+</body></html>

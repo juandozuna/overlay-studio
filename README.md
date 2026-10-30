@@ -6,10 +6,12 @@ Design transparent scoreboards on macOS, drive scores and clocks live, pair a ph
 
 ## Download
 
-- **Installer DMG:** [Overlay Studio 0.1.0](https://github.com/juandozuna/overlay-studio/releases/tag/v0.1.0) — app + instruction PDF
+- **Installer DMG:** [Latest release (0.3.0)](https://github.com/juandozuna/overlay-studio/releases/latest) — app + instruction manual + game night guide
+- **Game night how-to for volunteers (ProPresenter, with pictures):** [guide](https://juandozuna.github.io/overlay-studio/guides/game-night-propresenter.html) · [PDF](docs/guides/Game%20Night%20ProPresenter%20Guide.pdf)
+- **Website:** https://juandozuna.github.io/overlay-studio/
 - **Instruction manual (PDF):** [Overlay Studio Instruction Manual.pdf](docs/manual/output/Overlay%20Studio%20Instruction%20Manual.pdf)
 
-Open the DMG, drag **Overlay Studio** into Applications, then follow the PDF for first-show setup and ProPresenter NDI steps. If macOS blocks the first launch: right-click the app → **Open** → **Open**.
+Open the DMG, drag **Overlay Studio** into Applications, then follow the game night guide (or the instruction manual) for first-show setup and ProPresenter NDI steps. If macOS blocks the first launch: right-click the app → **Open** → **Open**.
 
 ## Screenshots
 
@@ -79,7 +81,7 @@ python3 docs/manual/build_slint_pdf.py
 python3 scripts/build_dmg.py
 ```
 
-The DMG is written to `dist/Overlay-Studio.dmg`.
+The game night guide PDF in `docs/guides/` is shipped in the DMG; regenerate it from the HTML page with Chrome (`--print-to-pdf`) after editing. The DMG is written to `dist/Overlay-Studio.dmg`.
 
 ## How it works
 

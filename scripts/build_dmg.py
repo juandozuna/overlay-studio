@@ -56,8 +56,8 @@ def build_app(stage: Path, name: str = "Overlay Studio") -> Path:
                 "CFBundleIdentifier": "com.overlaystudio.app",
                 "CFBundleExecutable": "overlay-studio-slint",
                 "CFBundlePackageType": "APPL",
-                "CFBundleShortVersionString": "0.1.0",
-                "CFBundleVersion": "0.1.0",
+                "CFBundleShortVersionString": "0.3.0",
+                "CFBundleVersion": "0.3.0",
                 "LSMinimumSystemVersion": "13.0",
                 "NSHighResolutionCapable": True,
                 "NSLocalNetworkUsageDescription": (
@@ -89,12 +89,17 @@ def build_dmg(app: Path, pdf: Path, output: Path) -> Path:
         stage.mkdir()
         shutil.copytree(app, stage / app.name, symlinks=True)
         shutil.copy2(pdf, stage / "Overlay Studio Instruction Manual.pdf")
+        guide = ROOT / "docs" / "guides" / "Game Night ProPresenter Guide.pdf"
+        if not guide.is_file():
+            raise SystemExit(f"Missing game night guide: {guide}")
+        shutil.copy2(guide, stage / guide.name)
         readme = stage / "README.txt"
         readme.write_text(
             "Overlay Studio for macOS\n"
             "========================\n\n"
             "1. Drag Overlay Studio into Applications.\n"
-            "2. Open Overlay Studio Instruction Manual.pdf for setup, usage, and ProPresenter NDI steps.\n"
+            "2. Open Game Night ProPresenter Guide.pdf for the volunteer how-to: scoreboard, wheel, effects and ProPresenter.\n"
+            "   Overlay Studio Instruction Manual.pdf covers every workspace in detail.\n"
             "3. On first launch, if macOS blocks the app: right-click → Open → Open.\n\n"
             "Need help with NDI discovery? See the ProPresenter chapter in the PDF "
             "(Renewed Vision Settings → Inputs).\n",

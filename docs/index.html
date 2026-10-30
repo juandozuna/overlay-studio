@@ -48,12 +48,13 @@ footer{padding:36px 0 48px;color:var(--mute);font-size:14px;text-align:center}
 </head>
 <body>
 <div class="wrap">
-<nav><b>Overlay Studio</b><div><a href="#features">Features</a><a href="#workflow">Workflow</a><a href="https://github.com/juandozuna/overlay-studio">GitHub</a></div></nav>
+<nav><b>Overlay Studio</b><div><a href="#features">Features</a><a href="#gamenight">Game night</a><a href="#workflow">Workflow</a><a href="https://github.com/juandozuna/overlay-studio">GitHub</a></div></nav>
 
 <header class="hero">
 <h1>Broadcast-ready scoreboards, <span>live over NDI</span></h1>
 <p>Design transparent scoreboards on macOS, run scores and clocks in real time, control from your phone, and send it all into ProPresenter or any NDI/Syphon receiver.</p>
-<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/tag/v0.1.0">Download for macOS</a>
+<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/latest">Download for macOS</a>
+<a class="btn s" href="guides/game-night-propresenter.html">Game night how-to</a>
 <a class="btn s" href="manual/output/Overlay%20Studio%20Instruction%20Manual.pdf">Read the manual</a>
 <div class="shot"><img src="manual/screenshots/11-slint-designer.png" alt="Overlay Studio design workspace with a scoreboard canvas"></div>
 </header>
@@ -82,9 +83,21 @@ footer{padding:36px 0 48px;color:var(--mute);font-size:14px;text-align:center}
 <div class="shot"><img loading="lazy" src="manual/screenshots/19-slint-timeline.png" alt="Animation timeline"></div></div>
 </section>
 
+<section id="gamenight">
+<h2>Game night, ready out of the box</h2>
+<p class="lead">Five teams, five layouts, a prize wheel, score effects and sounds. Open the app and you are already set up. Built for volunteers running a church game night through ProPresenter.</p>
+<div class="row"><div class="txt"><h2 style="font-size:26px">Live desk</h2><p>Switch layouts, add points, run the clock and start the NDI output. Every point flashes the team's tiles green or black, with sound.</p></div>
+<div class="shot"><img loading="lazy" src="guides/img/gn-live.png" alt="Game Night live desk with five teams"></div></div>
+<div class="row rev"><div class="txt"><h2 style="font-size:26px">Prize wheel</h2><p>Spin, remove the winner so nothing repeats, and restore the list. Also on the phone remote.</p></div>
+<div class="shot"><img loading="lazy" src="guides/img/gn-wheel.png" alt="Wheel panel with entries and spin controls"></div></div>
+<div class="cta" style="padding:36px 20px"><h2 style="font-size:28px">Step-by-step for volunteers</h2><p class="lead" style="margin:0 auto 20px">Install, name your teams, add Overlay Studio to ProPresenter, run the night, and a pre-show checklist, all with pictures.</p>
+<a class="btn p" href="guides/game-night-propresenter.html">Open the game night how-to</a>
+<a class="btn s" href="guides/Game%20Night%20ProPresenter%20Guide.pdf">Printable PDF</a></div>
+</section>
+
 <section id="workflow">
 <h2>On air with ProPresenter in four steps</h2>
-<p class="lead">The included PDF manual walks through first-show setup in detail.</p>
+<p class="lead">The <a href="guides/game-night-propresenter.html">game night how-to</a> walks through every step with pictures; the PDF manual covers the rest.</p>
 <ol class="steps">
 <li>Start an NDI output in <b>Live</b>.</li>
 <li>Click <b>Take design</b> to publish the current canvas.</li>
@@ -95,7 +108,7 @@ footer{padding:36px 0 48px;color:var(--mute);font-size:14px;text-align:center}
 
 <section>
 <div class="cta"><h2>Get Overlay Studio</h2><p class="lead" style="margin:0 auto 24px">Open the DMG, drag the app into Applications. If macOS blocks first launch, right-click the app → Open.</p>
-<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/tag/v0.1.0">Download v0.1.0 (DMG)</a>
+<a class="btn p" href="https://github.com/juandozuna/overlay-studio/releases/latest">Download v0.3.0 (DMG)</a>
 <a class="btn s" href="https://github.com/juandozuna/overlay-studio">View source</a></div>
 </section>
 <footer>Overlay Studio · Built with Rust &amp; Slint · NDI® is a trademark of Vizrt NDI AB.</footer>
