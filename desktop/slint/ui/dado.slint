@@ -111,7 +111,7 @@ export component DadoPanel inherits Rectangle {
         Text {text:root.view.status;color:root.status-color;font-size:11px;wrap:word-wrap;min-width:0px;min-height:15px;vertical-stretch:0;}
         // 1 · Up now
         Step {n:1;active:root.active;title:"UP NOW";
-            if !root.view.has-participants: Caption {text:"No participants yet. Add them in Game setup.";}
+            if !root.view.has-participants: Text {text:"No participants yet. Add them in Game setup.";color:#ffd54f;font-size:12px;wrap:word-wrap;min-width:0px;vertical-stretch:0;}
             if root.view.has-participants: HorizontalLayout {height:24px;spacing:6px;
                 Rectangle {width:10px;height:10px;border-radius:5px;background:root.view.team-color;y:7px;}
                 Text {text:root.view.team-name + (root.view.participant-name == "" ? "" : " · " + root.view.participant-name);color:#f2f5f9;font-size:14px;vertical-alignment:center;overflow:elide;}
@@ -123,7 +123,7 @@ export component DadoPanel inherits Rectangle {
         }
         // 2 · Roll
         Step {n:2;active:root.active;title:"ROLL";
-            Control {height:48px;text-size:17px;label:root.view.rolling ? "Rolling…" : root.view.result-name == "" ? "Roll" : "Roll again";accent:root.view.next-step == 0;enabled:root.view.can-roll;invoked=>{root.command("roll","");}}
+            Control {height:48px;text-size:17px;label:root.view.rolling ? "Rolling…" : root.view.result-name == "" ? "Roll" : "Roll again";accent:root.view.has-participants && root.view.next-step == 0;enabled:root.view.can-roll;invoked=>{root.command("roll","");}}
             if root.view.result-name != "": HorizontalLayout {height:24px;alignment:start;
                 Rectangle {width:pill.preferred-width + 18px;border-radius:12px;background:root.view.result-color;border-width:1px;border-color:#ffffff66;
                     pill := HorizontalLayout {padding-left:8px;padding-right:10px;spacing:6px;alignment:center;
@@ -132,7 +132,7 @@ export component DadoPanel inherits Rectangle {
                     }
                 }
             }
-            if root.view.result-name == "": Caption {text:"sin resultado";}
+            if root.view.result-name == "": Caption {text:"no result yet";}
             if root.view.result-rule != "": Text {text:root.view.result-rule;color:#f2f5f9;font-size:13px;wrap:word-wrap;min-width:0px;vertical-stretch:0;}
             if root.view.host-note != "": Caption {text:root.view.host-note;}
         }
@@ -154,10 +154,10 @@ export component DadoPanel inherits Rectangle {
                 }
             }
             if root.view.options-on-screen && root.view.has-question: VerticalLayout {spacing:2px;
-                Caption {text:"A · " + root.view.option-a;}
-                Caption {text:"B · " + root.view.option-b;}
-                Caption {text:"C · " + root.view.option-c;}
-                Caption {text:"D · " + root.view.option-d;}
+                Caption {text:root.view.option-a;}
+                Caption {text:root.view.option-b;}
+                Caption {text:root.view.option-c;}
+                Caption {text:root.view.option-d;}
             }
             Rectangle {border-width:1px;border-color:#3c424c;border-radius:4px;height:host.preferred-height;
                 host := VerticalLayout {padding:6px;spacing:6px;
@@ -183,8 +183,12 @@ export component DadoPanel inherits Rectangle {
                     Text {text:"paused";color:#d5dce5;font-size:11px;horizontal-alignment:center;vertical-alignment:center;}
                 }
             }
-            if root.view.timer-state == 2: Text {text:"PREGUNTA ANULADA";color:#ff8a87;font-size:13px;font-weight:600;vertical-stretch:0;}
-            if root.view.timer-state == 2: Caption {text:"Time is up · question annulled";}
+            if root.view.timer-state == 2: Rectangle {height:warn.preferred-height;background:#4a1a19;border-radius:4px;border-width:1px;border-color:#ff6a66;
+                warn := VerticalLayout {padding:6px;spacing:2px;
+                    Text {text:"⚠ PREGUNTA ANULADA";color:#ffb3b0;font-size:13px;font-weight:700;vertical-stretch:0;}
+                    Text {text:"Time is up · question annulled";color:#ffd0ce;font-size:11px;wrap:word-wrap;min-width:0px;vertical-stretch:0;}
+                }
+            }
             Control {height:44px;text-size:14px;label:"Start 30 s";accent:root.view.next-step == 2;enabled:root.view.can-start-timer;invoked=>{root.command("start_timer","");}}
             HorizontalLayout {height:30px;spacing:6px;
                 Control {label:root.view.timer-paused ? "Resume" : "Pause";enabled:root.view.can-pause;invoked=>{root.command("pause_timer","");}}
@@ -223,7 +227,11 @@ export component DadoPanel inherits Rectangle {
             Caption {text:root.view.bank-used;vertical-alignment:center;wrap:no-wrap;}
             Control {width:96px;label:"Reset used";enabled:root.view.can-reset-used;invoked=>{root.command("reset_used","");}}
         }
-        if root.bank-open && root.view.bank-error != "": Text {text:root.view.bank-error;color:#ff8a87;font-size:11px;wrap:word-wrap;min-width:0px;vertical-stretch:0;}
+        if root.view.bank-error != "": Rectangle {height:min(err.preferred-height + 12px,120px);background:#2a1a1a;border-radius:4px;border-width:1px;border-color:#6b1f1d;
+            Flickable {x:6px;y:6px;width:parent.width - 12px;height:parent.height - 12px;content-height:err.preferred-height;
+                err := Text {width:parent.width;text:root.view.bank-error;color:#ff8a87;font-size:11px;wrap:word-wrap;}
+            }
+        }
         if root.bank-open: Caption {text:"UTF-8 CSV with the header: book, reference, question, A, B, C, D, correct. Use quotes around text with commas. Stored inside the project.";}
         // Game setup: who plays for each team
         if root.setup: Caption {text:"PARTICIPANTS · one name per line, in turn order";}
