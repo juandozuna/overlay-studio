@@ -291,23 +291,46 @@ mod tests {
         game.dice_animation = Some(Instant::now() - Duration::from_millis(1));
         assert!(!game.animation_busy());
     }
+    /// Two teams with participants, a two-question bank, and a landed roll (so every El Dado action can succeed).
+    fn dice_round() -> (Project, GameSession) {
+        use crate::application::dice;
+        let mut p = dice_project();
+        dice::set_participants(&mut p, 0, "Ana\nBeto");
+        dice::import_bank(&mut p.values, "book,reference,question,A,B,C,D,correct\nA,r,q1,a,b,c,d,A\nA,r,q2,a,b,c,d,B\n").unwrap();
+        let mut game = GameSession::new(&p);
+        game.execute(&mut p, Action::RollDice).unwrap();
+        game.dice_reveal = Some(Instant::now() - Duration::from_millis(1));
+        assert!(game.reveal(&mut p).document_changed);
+        assert!(!p.values[dice_keys::RESULT].is_empty());
+        (p, game)
+    }
+    /// Starts the question clock through the real action and lets it run out.
+    fn run_out_the_question_clock(p: &mut Project, game: &mut GameSession) {
+        game.execute(p, Action::StartQuestionTimer).unwrap();
+        assert!(game.clocks[0].running);
+        p.clocks[0].seconds = 0.01;
+        game.clocks[0].last = Instant::now() - Duration::from_secs(1);
+        let outcome = game.tick(p).unwrap();
+        assert_eq!(outcome.events, vec![CueEvent::ClockFinished { clock: 0 }]);
+        assert!(!game.clocks[0].running);
+        assert_eq!(p.values[dice_keys::STATUS], dice_keys::STATUS_ANNULLED);
+    }
     #[test]
     fn question_clock_finish_annuls_and_next_actions_clear_it() {
-        for clear in [Action::StartQuestionTimer, Action::RollDice, Action::NextParticipant, Action::NextQuestion] {
-            let mut p = dice_project();
-            crate::application::dice::set_participants(&mut p, 0, "Ana");
-            let mut game = GameSession::new(&p);
-            game.execute(&mut p, Action::StartQuestionTimer).unwrap();
-            p.clocks[0].seconds = 0.01;
-            game.clocks[0].last = Instant::now() - Duration::from_secs(1);
-            let outcome = game.tick(&mut p).unwrap();
-            assert_eq!(outcome.events, vec![CueEvent::ClockFinished { clock: 0 }]);
-            assert_eq!(p.values[dice_keys::STATUS], dice_keys::STATUS_ANNULLED);
-            assert!(!game.clocks[0].running);
-            // the action may fail (no bank loaded) but a successful one must clear the status
-            if game.execute(&mut p, clear.clone()).is_ok() {
-                assert_eq!(p.values[dice_keys::STATUS], "", "{clear:?}");
-            }
+        for clear in [Action::RollDice, Action::NextQuestion, Action::NextParticipant, Action::StartQuestionTimer] {
+            let (mut p, mut game) = dice_round();
+            run_out_the_question_clock(&mut p, &mut game);
+            game.execute(&mut p, clear.clone()).unwrap_or_else(|e| panic!("{clear:?} failed: {e}"));
+            assert_eq!(p.values[dice_keys::STATUS], "", "{clear:?}");
+        }
+    }
+    #[test]
+    fn actions_that_do_not_start_a_new_question_leave_the_annulment_standing() {
+        for keep in [Action::RevealAnswer, Action::AwardCurrentTeam { points: 10 }] {
+            let (mut p, mut game) = dice_round();
+            run_out_the_question_clock(&mut p, &mut game);
+            game.execute(&mut p, keep.clone()).unwrap();
+            assert_eq!(p.values[dice_keys::STATUS], dice_keys::STATUS_ANNULLED, "{keep:?}");
         }
     }
     #[test]
@@ -315,12 +338,15 @@ mod tests {
         let mut p = dice_project();
         let mut game = GameSession::new(&p);
         game.execute(&mut p, Action::StartQuestionTimer).unwrap();
+        assert!(game.clocks[0].running);
         game.execute(&mut p, Action::RevealAnswer).unwrap();
+        assert_eq!(p.values[dice_keys::REVEALED], "1");
         assert!(!game.clocks[0].running);
         p.clocks[0].seconds = 0.;
         game.clocks[0].last = Instant::now() - Duration::from_secs(1);
-        game.tick(&mut p).unwrap();
-        assert_ne!(p.values.get(dice_keys::STATUS).map(String::as_str), Some(dice_keys::STATUS_ANNULLED));
+        let outcome = game.tick(&mut p).unwrap();
+        assert!(outcome.events.is_empty(), "{:?}", outcome.events);
+        assert_eq!(p.values[dice_keys::STATUS], "");
     }
     #[test]
     fn reveal_before_the_timer_does_not_hide_the_annulment() {

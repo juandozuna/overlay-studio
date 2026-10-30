@@ -453,18 +453,42 @@ mod tests {
     fn two_clocks_see_the_same_roll() {
         let mut cfg = DiceConfig::default();
         let (a, b) = (DiceClock::default(), DiceClock::default());
-        for clock in [&a, &b] {
+        // the two renderers last drew the die at different orientations
+        for (clock, face) in [(&a, 1), (&b, 2)] {
             assert!(clock.observe(&cfg).is_none());
-            clock.remember(rest_orientation(1));
+            clock.remember(rest_orientation(face));
         }
         cfg.roll_id = 3;
         cfg.face = Face::from_index(4);
-        let ((_, fa), (_, fb)) = (a.observe(&cfg).unwrap(), b.observe(&cfg).unwrap());
-        assert_eq!(fa, fb);
-        assert_eq!(fa, rest_orientation(1));
-        assert!(a.busy() && b.busy());
-        let t = 0.3;
-        assert_eq!(orientation_at(fa, cfg.roll_id, 4, t), orientation_at(fb, cfg.roll_id, 4, t));
+        let ((ta, from_a), (tb, from_b)) = (a.observe(&cfg).unwrap(), b.observe(&cfg).unwrap());
+        assert!(same(from_a, rest_orientation(1)) && same(from_b, rest_orientation(2)));
+        assert!(ta < 1. && tb < 1. && a.busy() && b.busy());
+        // different starting points, same landing: both end on the chosen face
+        for from in [from_a, from_b] {
+            assert!(same(orientation_at(from, cfg.roll_id, 4, 1.), rest_orientation(4)));
+        }
+        assert_eq!(facing_face(orientation_at(from_a, cfg.roll_id, 4, 1.)), 4);
+        // a third renderer that last drew the same orientation as `a` follows the very same tumble
+        let c = DiceClock::default();
+        let mut idle = DiceConfig::default();
+        assert!(c.observe(&idle).is_none());
+        c.remember(rest_orientation(1));
+        idle.roll_id = cfg.roll_id;
+        idle.face = cfg.face;
+        let (_, from_c) = c.observe(&idle).unwrap();
+        for k in 0..=10 {
+            let t = k as f32 / 10.;
+            assert_eq!(orientation_at(from_a, cfg.roll_id, 4, t), orientation_at(from_c, cfg.roll_id, 4, t), "t={t}");
+        }
+        // the tumble really moves: partway through, the die is not yet on the chosen face
+        assert!(!same(orientation_at(from_a, cfg.roll_id, 4, 0.3), rest_orientation(4)));
+        assert!(!same(orientation_at(from_a, cfg.roll_id, 4, 0.), rest_orientation(4)));
+        // a repeat observation of the same roll id does not restart the roll
+        assert_eq!(a.observe(&cfg).unwrap().1, from_a);
+        // the next roll starts from where this one was last drawn
+        a.remember(rest_orientation(4));
+        cfg.roll_id = 4;
+        assert!(same(a.observe(&cfg).unwrap().1, rest_orientation(4)));
     }
     #[test]
     fn cube_and_shadow_stay_inside_the_box_at_every_orientation() {
