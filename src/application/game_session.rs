@@ -49,7 +49,11 @@ impl GameSession {
             Action::AwardCurrentTeam { points } => *points != 0,
             _ => false,
         };
+        let new_turn = matches!(action, Action::NextParticipant);
         let mut outcome = game_commands::dispatch(project, &mut self.clocks, action)?;
+        if new_turn {
+            self.cancel_dice_roll();
+        }
         if spun {
             let seconds = crate::domain::wheel::WheelConfig::read(&project.values).spin_seconds;
             let now = Instant::now();
@@ -90,6 +94,11 @@ impl GameSession {
         outcome.preview_requested |= project.values != before;
         Ok(())
     }
+    /// Forgets a roll that is still tumbling so it cannot publish its result into another turn (new turn, "Back one").
+    pub fn cancel_dice_roll(&mut self) {
+        self.dice_reveal = None;
+        self.dice_animation = None;
+    }
     /// True while a wheel spin, its winner glow, its confetti, a dice roll or a score effect needs frames.
     pub fn animation_busy(&self) -> bool {
         let now = Instant::now();
@@ -124,9 +133,9 @@ impl GameSession {
                 outcome
                     .events
                     .push(CueEvent::ClockFinished { clock: index });
-                if spec.value_key == dice_keys::QUESTION_CLOCK_KEY
-                    && project.values.get(dice_keys::REVEALED).is_none_or(|v| v != "1")
-                {
+                // Revealing or awarding pauses the clock, so reaching zero means nobody answered in time
+                // (a Reveal before the timer started must not hide that).
+                if spec.value_key == dice_keys::QUESTION_CLOCK_KEY {
                     project.values.insert(dice_keys::STATUS.into(), dice_keys::STATUS_ANNULLED.into());
                     outcome.document_changed = true;
                     outcome.preview_requested = true;
@@ -309,10 +318,35 @@ mod tests {
         game.execute(&mut p, Action::RevealAnswer).unwrap();
         assert!(!game.clocks[0].running);
         p.clocks[0].seconds = 0.;
-        game.clocks[0].running = true;
         game.clocks[0].last = Instant::now() - Duration::from_secs(1);
         game.tick(&mut p).unwrap();
         assert_ne!(p.values.get(dice_keys::STATUS).map(String::as_str), Some(dice_keys::STATUS_ANNULLED));
+    }
+    #[test]
+    fn reveal_before_the_timer_does_not_hide_the_annulment() {
+        let mut p = dice_project();
+        let mut game = GameSession::new(&p);
+        game.execute(&mut p, Action::RevealAnswer).unwrap();
+        assert_eq!(p.values[dice_keys::REVEALED], "1");
+        game.execute(&mut p, Action::StartQuestionTimer).unwrap();
+        p.clocks[0].seconds = 0.01;
+        game.clocks[0].last = Instant::now() - Duration::from_secs(1);
+        game.tick(&mut p).unwrap();
+        assert_eq!(p.values[dice_keys::STATUS], dice_keys::STATUS_ANNULLED);
+    }
+    #[test]
+    fn next_participant_cancels_a_roll_that_is_still_tumbling() {
+        let mut p = dice_project();
+        crate::application::dice::set_participants(&mut p, 0, "Ana");
+        let mut game = GameSession::new(&p);
+        game.execute(&mut p, Action::RollDice).unwrap();
+        game.execute(&mut p, Action::StartQuestionTimer).unwrap();
+        game.execute(&mut p, Action::NextParticipant).unwrap();
+        assert!(!game.clocks[0].running);
+        assert_eq!((p.values[dice_keys::FACE].as_str(), p.values[dice_keys::QUESTION_CLOCK_KEY].as_str()), ("", "00:30"));
+        assert!(!game.animation_busy());
+        assert!(!game.reveal(&mut p).preview_requested);
+        assert_eq!(p.values[dice_keys::RESULT], "");
     }
     #[test]
     fn award_runs_the_score_effect_path() {

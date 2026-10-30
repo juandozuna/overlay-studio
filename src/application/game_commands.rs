@@ -165,6 +165,7 @@ pub fn dispatch(
         }
         Action::NextParticipant => {
             dice::next_participant(project)?;
+            dice::reset_question_clock(project, clocks);
             outcome.document_changed = true;
             outcome.preview_requested = true;
         }
