@@ -388,7 +388,9 @@ fn command(s: &mut Desktop, command: &str, value: &str) -> Result<(), String> {
         }
         "next_participant" => s.execute(Action::NextParticipant),
         "back_participant" => {
-            dice::previous_participant(&mut s.document.project).map_err(|e| e.to_string())?;
+            let Desktop { document, game, .. } = s;
+            dice::back_one(&mut document.project, &mut game.clocks).map_err(|e| e.to_string())?;
+            game.cancel_dice_roll();
             s.document.mark_external_edit();
             Ok(())
         }
