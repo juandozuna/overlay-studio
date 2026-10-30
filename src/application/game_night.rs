@@ -1,4 +1,5 @@
 //! Five-team Game Night project and layouts (WN-4).
+use crate::domain::dice;
 use crate::domain::controls::{Action, Control, ControllerLayout};
 use crate::domain::fx::{self, FxStyle};
 use crate::domain::sound;
@@ -125,24 +126,63 @@ fn wheel_stage(teams: &[Team], first: u64) -> Builder {
     }
     b
 }
+const CARD: [u8; 4] = [20, 22, 32, 235];
+const CARD_LIGHT: [u8; 4] = [34, 38, 56, 235];
+
+impl Builder {
+    fn card(&mut self, name: &str, rect: [f32; 4], fill: [u8; 4], radius: f32) {
+        self.push(name.into(), Kind::Rectangle, rect, fill).radius = radius;
+    }
+}
+fn dado_stage(teams: &[Team], first: u64) -> Builder {
+    let mut b = Builder { style: FxStyle::Burst, next: first, elements: vec![] };
+    b.card("Question card", [160., 30., 1600., 190.], CARD, 24.);
+    b.text("Question".into(), dice::QUESTION_TEXT, [190., 40., 1540., 170.], 46., TextAlign::Center);
+    b.push("Dice".into(), Kind::Dice, [700., 250., 520., 520.], [255; 4]).animation = Animation::Pop;
+    // option rows are text only: without conditional visibility an empty panel would still show
+    for (i, key) in dice::OPTION_KEYS.iter().enumerate() {
+        let x = if i % 2 == 0 { 60. } else { 1260. };
+        let y = 300. + (i / 2) as f32 * 190.;
+        b.text(format!("Option {}", ["A", "B", "C", "D"][i]), key, [x, y, 600., 160.], 40., TextAlign::Left);
+    }
+    b.card("Rule card", [520., 780., 880., 90.], CARD_LIGHT, 20.);
+    b.text("Dice rule".into(), dice::RULE, [540., 780., 840., 90.], 40., TextAlign::Center);
+    b.text("Dice status".into(), dice::STATUS, [520., 876., 880., 64.], 44., TextAlign::Center).fill = [255, 77, 94, 255];
+    b.card("Turn card", [40., 780., 460., 160.], CARD, 20.);
+    b.text("Turn team".into(), dice::TURN_TEAM_NAME, [56., 786., 428., 50.], 30., TextAlign::Left).fill = [170, 180, 205, 255];
+    b.text("Turn name".into(), dice::TURN_NAME, [56., 836., 428., 96.], 54., TextAlign::Left);
+    b.card("Question clock card", [1420., 780., 460., 160.], CARD, 20.);
+    b.text("Question clock".into(), dice::QUESTION_CLOCK_KEY, [1420., 780., 460., 160.], 110., TextAlign::Center);
+    for (i, team) in teams.iter().enumerate() {
+        b.chip(team, [40. + i as f32 * 368., 950., 352., 100.], 32., 56.);
+    }
+    b
+}
 
 fn controller(project: &mut Project) -> Result<(), String> {
     project.controller.controls.clear();
     let mut layout = ControllerLayout::for_game(project)?;
     let mut id = layout.controls.iter().map(|c| c.id).max().unwrap_or(0) + 1;
     let row = layout.controls.iter().map(|c| c.row + c.height).max().unwrap_or(0);
-    let mut actions: Vec<(String, Action)> = project
+    let mut actions: Vec<(String, Action, bool)> = project
         .designs
         .iter()
         .enumerate()
-        .map(|(design, d)| (format!("Show {}", d.name), Action::Take { route: 0, design }))
+        .map(|(design, d)| (format!("Show {}", d.name), Action::Take { route: 0, design }, false))
         .collect();
     actions.extend([
-        ("Spin wheel".into(), Action::SpinWheel),
-        ("Remove winner".into(), Action::RemoveWheelWinner),
-        ("Restore wheel".into(), Action::RestoreWheel),
+        ("Spin wheel".into(), Action::SpinWheel, false),
+        ("Remove winner".into(), Action::RemoveWheelWinner, false),
+        ("Restore wheel".into(), Action::RestoreWheel, false),
+        ("Roll dice".into(), Action::RollDice, false),
+        ("Next question".into(), Action::NextQuestion, false),
+        ("Reveal answer".into(), Action::RevealAnswer, false),
+        ("Start 30 s".into(), Action::StartQuestionTimer, false),
+        ("Next participant".into(), Action::NextParticipant, true),
+        ("+10 team".into(), Action::AwardCurrentTeam { points: dice::POINTS }, false),
+        ("-10 team".into(), Action::AwardCurrentTeam { points: -dice::POINTS }, true),
     ]);
-    for (n, (label, action)) in actions.into_iter().enumerate() {
+    for (n, (label, action, confirm)) in actions.into_iter().enumerate() {
         layout.controls.push(Control {
             id,
             label,
@@ -151,7 +191,7 @@ fn controller(project: &mut Project) -> Result<(), String> {
             width: 4,
             height: 2,
             color: [19, 95, 123],
-            confirm: false,
+            confirm,
             action,
         });
         id += 1;
@@ -198,12 +238,27 @@ impl Project {
         crate::application::wheel::seed_defaults(&mut values);
         values.insert(wheel::WINNER.into(), String::new());
         values.insert(wheel::WINNER_INDEX.into(), String::new());
+        for k in [dice::STATUS, dice::RULE, dice::RESULT, dice::QUESTION_TEXT, dice::HOST_ANSWER, dice::HOST_REF, dice::REVEALED, dice::BANK, dice::BANK_USED, dice::BANK_FILTER] {
+            values.insert(k.into(), String::new());
+        }
+        for k in dice::OPTION_KEYS {
+            values.insert(k.into(), String::new());
+        }
+        values.insert(dice::ROLL_SECONDS.into(), "2".into());
+        values.insert(dice::TURN_TEAM.into(), "0".into());
+        values.insert(dice::TURN_NAME.into(), "Participante 1".into());
+        values.insert(dice::TURN_TEAM_NAME.into(), teams[0].label.to_uppercase());
+        values.insert(dice::QUESTION_CLOCK_KEY.into(), "0:30".into());
+        for team in &teams {
+            values.insert(dice::participants_key(team.id), "Participante 1\nParticipante 2\nParticipante 3".into());
+        }
         let builders = [
             ("1 Full grid", full_grid as fn(&[Team], u64) -> Builder),
             ("2 Top bar", top_bar),
             ("3 Bottom strip", bottom_strip),
             ("4 Side stack", side_stack),
             ("5 Wheel stage", wheel_stage),
+            ("6 Dado", dado_stage),
         ];
         let mut designs = vec![];
         let mut next = 1;
@@ -235,6 +290,14 @@ impl Project {
                 seconds: 600.,
                 reset_seconds: 600.,
                 countdown: true,
+            },
+            ClockSpec {
+                id: 2,
+                name: "Question clock".into(),
+                value_key: dice::QUESTION_CLOCK_KEY.into(),
+                seconds: dice::QUESTION_SECONDS,
+                reset_seconds: dice::QUESTION_SECONDS,
+                countdown: true,
             }],
             cue_rules: vec![],
             controller: Default::default(),
@@ -255,7 +318,7 @@ mod tests {
         p.validate().unwrap();
         assert_eq!(p.teams.len(), 5);
         let names: Vec<_> = p.designs.iter().map(|d| d.name.as_str()).collect();
-        assert_eq!(names, ["1 Full grid", "2 Top bar", "3 Bottom strip", "4 Side stack", "5 Wheel stage"]);
+        assert_eq!(names, ["1 Full grid", "2 Top bar", "3 Bottom strip", "4 Side stack", "5 Wheel stage", "6 Dado"]);
         assert_eq!(p.routes.len(), 2);
         assert!(p.routes.iter().all(|r| r.design_id == p.designs[0].id));
     }
@@ -283,7 +346,7 @@ mod tests {
     #[test]
     fn team_layers_carry_their_layout_effect_and_others_none() {
         let p = Project::game_night();
-        let styles = [FxStyle::Flash, FxStyle::Sweep, FxStyle::Wipe, FxStyle::Shake, FxStyle::Burst];
+        let styles = [FxStyle::Flash, FxStyle::Sweep, FxStyle::Wipe, FxStyle::Shake, FxStyle::Burst, FxStyle::Burst];
         for (d, style) in p.designs.iter().zip(styles) {
             for e in &d.elements {
                 let team = p.teams.iter().find(|t| e.name.starts_with(&format!("{} ", t.label)));
@@ -314,7 +377,25 @@ mod tests {
         let p = Project::game_night();
         p.controller.validate(&p).unwrap();
         let takes = p.controller.controls.iter().filter(|c| matches!(c.action, Action::Take { .. })).count();
-        assert_eq!(takes, 5);
+        assert_eq!(takes, 6);
         assert!(p.controller.controls.iter().any(|c| c.action == Action::SpinWheel));
+        for action in [Action::RollDice, Action::NextQuestion, Action::RevealAnswer, Action::StartQuestionTimer, Action::NextParticipant, Action::AwardCurrentTeam { points: 10 }, Action::AwardCurrentTeam { points: -10 }] {
+            assert!(p.controller.controls.iter().any(|c| c.action == action), "{action:?}");
+        }
+    }
+    #[test]
+    fn dado_design_has_one_die_five_chips_and_seeded_values() {
+        let p = Project::game_night();
+        let d = &p.designs[5];
+        assert_eq!(d.name, "6 Dado");
+        assert_eq!(d.elements.iter().filter(|e| e.kind == Kind::Dice).count(), 1);
+        assert_eq!(d.elements.iter().filter(|e| e.name.ends_with(" panel") && e.name.starts_with("Team ")).count(), 5);
+        for e in d.elements.iter().filter(|e| e.kind == Kind::Text && !e.binding.is_empty()) {
+            assert!(p.values.contains_key(&e.binding) || e.binding == "event", "{}", e.name);
+        }
+        assert_eq!(p.values[dice::participants_key(5).as_str()].lines().count(), 3);
+        let clock = p.clocks.iter().find(|c| c.value_key == dice::QUESTION_CLOCK_KEY).expect("question clock");
+        assert_eq!((clock.seconds, clock.countdown), (30., true));
+        p.controller.validate(&p).unwrap();
     }
 }
