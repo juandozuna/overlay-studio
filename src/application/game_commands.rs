@@ -35,6 +35,8 @@ pub enum CommandError {
     WheelNoWinner,
     WheelNoOriginal,
     WheelBusy,
+    /// El Dado command failed; the text is shown to the host as is.
+    Dice(String),
 }
 
 impl fmt::Display for CommandError {
@@ -48,6 +50,7 @@ impl fmt::Display for CommandError {
             Self::WheelEmpty => write!(f, "The wheel has no entries to spin"),
             Self::WheelNoWinner => write!(f, "The wheel has no winner to remove yet"),
             Self::WheelBusy => write!(f, "The wheel is still spinning"),
+            Self::Dice(message) => write!(f, "{message}"),
             Self::WheelNoOriginal => write!(f, "The wheel has no original list to restore"),
             Self::NonNumericField(field) => write!(
                 f,
@@ -140,6 +143,15 @@ pub fn dispatch(
             wheel::restore(&mut project.values)?;
             outcome.document_changed = true;
             outcome.preview_requested = true;
+        }
+        Action::RollDice
+        | Action::NextQuestion
+        | Action::RevealAnswer
+        | Action::NextParticipant
+        | Action::StartQuestionTimer
+        | Action::AwardCurrentTeam { .. } => {
+            // Contract stub: the El Dado logic task replaces this arm.
+            return Err(CommandError::Dice("El Dado is not wired yet".into()));
         }
         Action::RunCue { id } => {
             let target = project
